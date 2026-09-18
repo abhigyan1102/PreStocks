@@ -21,6 +21,8 @@ npm run dev
 
 Open `http://localhost:3000`. Run `npm test`, `npm run typecheck`, and `npm run build` to verify the current slice.
 
+When this project is under macOS Documents, `npm run dev` places dependencies in `~/Library/Caches/PreStocksGuardian/` so cloud storage cannot evict a package while Next.js is reading it. The dev server listens on `127.0.0.1:3000`. This workspace uses Next.js' supported Webpack mode because Turbopack rejects a dependency symlink outside the project. Stop the dev server before running a production build; Next.js uses the same `.next` output directory for both commands.
+
 ## API today
 
 | Route | Purpose |
