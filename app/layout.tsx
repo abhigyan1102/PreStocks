@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Guardian | PreStocks lifecycle context",
-  description: "Sourced lifecycle context for PreStocks tokens and the wallets that hold them.",
+  title: "PreStocks Continuity | Wallet-aware lifecycle actions",
+  description: "When the company changes, your onchain position changes with it. Sourced PreStocks lifecycle context for real wallet holdings.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

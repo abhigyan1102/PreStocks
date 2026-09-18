@@ -1,9 +1,10 @@
 import type { GuardianEvaluation, LifecycleEvent, PreStockAsset } from "@/lib/domain";
 import { demoHoldings } from "@/lib/demo";
-import { evaluateHolding } from "@/lib/guardian";
+import { evaluateHolding, resolveLifecycleEvent } from "@/lib/guardian";
 import { lifecycleProvider } from "@/lib/lifecycle";
 import { getPreStocks, premiumPercent } from "@/lib/prestocks";
 import { Motion } from "./Motion";
+import { WalletLookup } from "./WalletLookup";
 
 export const dynamic = "force-dynamic";
 
@@ -17,19 +18,21 @@ function labelDate(value: string): string {
 
 function statusForAsset(asset: PreStockAsset, event: LifecycleEvent | undefined): string {
   if (!event) return "No recorded event";
+  if (event.status === "EXPIRED" || (event.deadline && Date.parse(event.deadline) <= Date.now())) return "Expired";
   return event.status === "ACTION_REQUIRED" && event.deadline && Date.parse(event.deadline) > Date.now()
     ? "Action required" : event.status.toLowerCase().replaceAll("_", " ");
 }
 
 function AssetRow({ asset, event }: { asset: PreStockAsset; event?: LifecycleEvent }) {
   const premium = premiumPercent(asset);
+  const status = statusForAsset(asset, event);
   return <details className="asset-row">
     <summary>
       <span className="asset-identity">
         {asset.image ? <img src={asset.image} alt="" width="42" height="42" /> : <span className="asset-image-fallback" />}
         <strong>{asset.name.replace(" PreStocks", "")}</strong>
       </span>
-      <span className={event?.status === "ACTION_REQUIRED" ? "asset-status action" : "asset-status"}>{statusForAsset(asset, event)}</span>
+      <span className={status === "Action required" ? "asset-status action" : "asset-status"}>{status}</span>
       <span className="asset-value">{asset.tokenPrice === null ? "Unavailable" : money.format(asset.tokenPrice)}</span>
       <span className="asset-chevron" aria-hidden="true">↗</span>
     </summary>
@@ -65,10 +68,11 @@ export default async function Home() {
   return <main className="site-shell">
     <Motion />
     <header className="site-header page-gutter">
-      <a className="wordmark" href="#top"><strong>guardian</strong><span>/</span>PreStocks</a>
+      <a className="wordmark" href="#top"><strong>continuity</strong><span>/</span>PreStocks</a>
       <nav aria-label="Main navigation">
         <a href="#top">Overview</a>
-        <a href="#action-center">Action center</a>
+        <a href="#wallet-lookup">Portfolio</a>
+        <a href="#action-center">Continuity</a>
         <a href="#assets">Assets</a>
         <a href="#developers">Developers</a>
       </nav>
@@ -76,11 +80,11 @@ export default async function Home() {
 
     <section className="hero page-gutter" id="top" aria-labelledby="hero-title">
       <div className="hero-copy">
-        <h1 id="hero-title">Know what your holdings need next.</h1>
-        <p>Lifecycle events for PreStocks, connected to the tokens a wallet holds.</p>
+        <h1 id="hero-title">When the company changes, your onchain position changes with it.</h1>
+        <p>Corporate events become actionable onchain transitions. Continuity connects reviewed lifecycle events to the PreStocks positions a wallet holds.</p>
         <div className="hero-actions">
-          <a className="button button-dark" href="#action-center">Explore demo <span aria-hidden="true">↗</span></a>
-          <a className="button button-outline" href="#developers">View API <span aria-hidden="true">↗</span></a>
+          <a className="button button-dark" href="#wallet-lookup">Check wallet <span aria-hidden="true">↗</span></a>
+          <a className="button button-outline" href="#action-center">Explore demo <span aria-hidden="true">↗</span></a>
         </div>
       </div>
       <div className="hero-art" aria-hidden="true">
@@ -91,9 +95,11 @@ export default async function Home() {
       </div>
     </section>
 
+    <WalletLookup />
+
     <section className="action-section page-gutter" id="action-center" aria-labelledby="action-title">
-      <div className="section-head"><span>Action center</span><span>Demo environment</span></div>
-      <h2 id="action-title">{action ? "One holding needs attention." : "Understand what needs attention."}</h2>
+      <div className="section-head"><span>Position continuity</span><span>Demo environment</span></div>
+      <h2 id="action-title">{action ? "One position has a next step." : "Understand a position's next step."}</h2>
       <div className="demo-intro"><strong>Demo wallet</strong><p>Illustrative token balances. Asset data comes from the official API; events come from a reviewed source snapshot.</p></div>
       {assetError ? <div className="load-error" role="status">Official PreStocks asset data is unavailable. The demo will return when the source is reachable.</div> :
         action ? <div className="action-layout">
@@ -111,7 +117,7 @@ export default async function Home() {
                 <a className="button button-rust" href={action.actions[0]?.url} target="_blank" rel="noopener noreferrer">Read PreStocks instructions <span aria-hidden="true">↗</span></a>
                 <p className="source-note">Source: <a href={action.lifecycle.event?.sourceUrl} target="_blank" rel="noopener noreferrer">{action.lifecycle.event?.sourceName}</a> · reviewed {action.lifecycle.event?.verifiedAt ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(action.lifecycle.event.verifiedAt)) : "date unavailable"}</p>
               </div>
-              <p className="action-explainer">PreStocks states that SpaceX tokens must be swapped before the deadline. Read its official instructions for options, eligibility, and current details. Guardian does not execute transactions.</p>
+              <p className="action-explainer">PreStocks states that SpaceX tokens must be swapped before the deadline. Read its official instructions for options, eligibility, and current details. Continuity does not execute transactions.</p>
             </div>
           </div>
           <aside className="other-holdings"><h3>Other demo holdings</h3>{normal.map((item) => <div key={item.asset.mint} className="other-row"><strong>{item.asset.name.replace(" PreStocks", "")}</strong><span>No recorded event</span></div>)}</aside>
@@ -125,7 +131,7 @@ export default async function Home() {
         <p>PreStocks market data with lifecycle context beside each token.</p>
         <div className="asset-table-head"><span>Asset</span><span>Status</span><span>Token price</span><span></span></div>
         <div className="asset-list">
-          {displayedAssets.map((asset) => <AssetRow key={asset.mint} asset={asset} event={events.find((event) => event.assetMint === asset.mint)} />)}
+          {displayedAssets.map((asset) => <AssetRow key={asset.mint} asset={asset} event={resolveLifecycleEvent(asset, events) ?? undefined} />)}
           {assetError && <p className="load-error">Live asset data is unavailable.</p>}
         </div>
         <a className="text-link" href="https://prestocks.com/products" target="_blank" rel="noopener noreferrer">Explore all official assets <span aria-hidden="true">↗</span></a>
@@ -145,11 +151,11 @@ export default async function Home() {
 
     <section className="developer-section page-gutter" id="developers" aria-labelledby="developer-title">
       <div className="section-head"><span>For developers</span><span>Read-only API</span></div>
-      <h2 className="developer-heading" id="developer-title">{["One", "API", "for", "understanding", "what", "a", "PreStocks", "asset", "needs", "next."].map((word, index) => <span className="reveal-word" key={`${word}-${index}`}>{word} </span>)}</h2>
-      <p>Build sourced lifecycle context into a wallet, trading app, or bot.</p>
+      <h2 className="developer-heading" id="developer-title">{["Connect", "a", "position", "to", "its", "next", "verified", "step."].map((word, index) => <span className="reveal-word" key={`${word}-${index}`}>{word} </span>)}</h2>
+      <p>Read real wallet positions and sourced lifecycle context through the API.</p>
       <div className="developer-actions"><a className="button button-dark" href="/api/v1/events/SPACEX" target="_blank" rel="noopener noreferrer">View API response <span aria-hidden="true">↗</span></a><a className="button button-outline" href="#action-center">Explore demo <span aria-hidden="true">↗</span></a></div>
       <div className="code-surface"><code><span>GET</span> /api/v1/events/SPACEX</code><pre>{`{\n  "provenance": "reviewed static source snapshot",\n  "events": [{\n    "type": "IPO",\n    "deadline": "2027-03-12T23:59:00Z",\n    "sourceUrl": "https://prestocks.com/spacex"\n  }]\n}`}</pre></div>
     </section>
-    <footer className="site-footer page-gutter"><strong>Guardian</strong><span>Official PreStocks assets · reviewed lifecycle source</span></footer>
+    <footer className="site-footer page-gutter"><strong>PreStocks Continuity</strong><span>Official assets · reviewed lifecycle source · user-controlled actions</span></footer>
   </main>;
 }
