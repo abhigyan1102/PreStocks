@@ -46,3 +46,30 @@ test("event provenance cannot point away from the official source", () => {
   assert.throws(() => validateLifecycleEvent({ ...event, sourceUrl: "https://example.com/spacex" }));
   assert.throws(() => validateLifecycleEvent({ ...event, verifiedAt: "unknown" }));
 });
+
+test("active action beats an older completed event", () => {
+  const historical: LifecycleEvent = { ...event, id: "old", status: "COMPLETED", deadline: "2025-01-01T00:00:00Z" };
+  const result = evaluateHolding(asset, holding, [historical, event], new Date("2026-09-18T00:00:00Z"));
+  assert.equal(result.lifecycle.event?.id, event.id);
+  assert.equal(result.lifecycle.state, "ACTION_REQUIRED");
+});
+
+test("event ordering does not change evaluation", () => {
+  const watch: LifecycleEvent = { ...event, id: "watch", status: "ANNOUNCED", deadline: "2027-02-01T00:00:00Z" };
+  const now = new Date("2026-09-18T00:00:00Z");
+  const first = evaluateHolding(asset, holding, [watch, event], now);
+  const second = evaluateHolding(asset, holding, [event, watch], now);
+  assert.deepEqual(first, second);
+  assert.equal(first.lifecycle.event?.id, event.id);
+});
+
+test("nearest action deadline wins among equal-priority events", () => {
+  const sooner: LifecycleEvent = { ...event, id: "sooner", deadline: "2026-12-01T00:00:00Z" };
+  const result = evaluateHolding(asset, holding, [event, sooner], new Date("2026-09-18T00:00:00Z"));
+  assert.equal(result.lifecycle.event?.id, "sooner");
+});
+
+test("unrelated symbol cannot trigger an action", () => {
+  const result = evaluateHolding(asset, holding, [{ ...event, assetSymbol: "OPENAI" }]);
+  assert.equal(result.lifecycle.state, "ACTIVE");
+});
