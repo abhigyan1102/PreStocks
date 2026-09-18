@@ -1,14 +1,19 @@
-# PreStocks Guardian
+# PreStocks Continuity
 
-Guardian turns PreStocks lifecycle notices into sourced, machine-readable events and evaluates what they mean for a token holding. The current dashboard is a demonstration client for that engine.
+PreStocks Continuity turns private-company lifecycle events into wallet-aware, verifiable Solana actions. **When the company changes, your onchain position changes with it.**
 
-## Current status
+Tokenized private-company positions do not remain static when the underlying company is acquired, merges, or goes public. Continuity connects reviewed lifecycle events to actual wallet holdings and determines the next supported step. An event source establishes **what changed**. An execution router separately establishes **whether an onchain route exists now**. Neither fact implies the other.
 
-This repository contains the first working slice: official PreStocks asset ingestion, a reviewed SpaceX lifecycle event, the Guardian evaluator, read-only asset and event routes, a simulation-only evaluation route, and a labeled demo screen. It does **not** yet scan a real wallet, connect Phantom or Backpack, send webhooks, provide an SDK, or execute a swap. The demo balances are illustrative. No private key is requested.
+## What works today
 
-The [official PreStocks API](https://prestocks.com/api/prestocks) supplies asset identity, Solana mint addresses, token price, mark price, valuation, and supply; the server revalidates the response every 60 seconds. The [SpaceX product page](https://prestocks.com/spacex) supplies the reviewed IPO and swap notice. Guardian stores that notice as a temporary source snapshot with `sourceUrl` and `verifiedAt`; it is not a live PreStocks corporate-action feed. It should be rechecked before real users rely on an action status.
+- The [official PreStocks API](https://prestocks.com/api/prestocks) supplies asset identity and `contract_address` values. These exact mint addresses are the trusted registry; token symbols and metadata are never used to identify holdings. The server revalidates asset data every 60 seconds.
+- A public-address lookup reads finalized SPL Token and Token-2022 accounts from a configured Solana mainnet RPC, validates parsed data, ignores zero balances and unknown mints, deduplicates accounts, and aggregates same-mint raw amounts using integers. The response marks these positions `mode: "live"`.
+- A reviewed [SpaceX product-page notice](https://prestocks.com/spacex) is stored as a sourced lifecycle snapshot. The evaluator selects the relevant event deterministically, prioritizing active required actions over historical notices. The planner currently points SpaceX holders to the official instructions.
+- The lineage model retains event provenance and can describe verified transitions. The production registry currently contains **one** SpaceX notice and no verified destination mint or conversion ratio. Its lineage cannot claim an XAI → SPACEX → SPCXx chain.
+- A Jupiter order adapter and quote validation boundary are present. They only run after a reviewed transition supplies a verified destination mint and `JUPITER_API_KEY` is configured. No such production transition is recorded yet, so **no executable Jupiter route is currently claimed**. The API does not expose an unsigned transaction for signing.
+- The demo wallet and simulation API remain separate and clearly labeled. Demo balances do not establish real ownership.
 
-The xAI page describes a deadline of September 12, 2026, which has passed as of this work. xAI is also absent from the current official asset API response, so it is not used as an active demo holding.
+No private key, seed phrase, custody, automatic signing, transaction broadcast, or swap execution is part of this release. A wallet connection and signed transaction flow are not enabled.
 
 ## Run locally
 
@@ -16,54 +21,69 @@ Requires Node.js 22 or later.
 
 ```bash
 npm install
+cp .env.example .env.local
+# Set SOLANA_RPC_URL to a trusted Solana mainnet HTTPS RPC endpoint.
 npm run dev
 ```
 
-Open `http://localhost:3000`. Run `npm test`, `npm run typecheck`, and `npm run build` to verify the current slice.
+Open `http://localhost:3000`. The homepage and demo work without RPC configuration. Live wallet routes return a clear configuration error until `SOLANA_RPC_URL` is set; they never silently use devnet. `JUPITER_API_KEY` is optional and is only used if a reviewed transition later supplies an executable candidate pair. Keep both values server-side in `.env.local`; never commit a key.
 
-When this project is under macOS Documents, `npm run dev` places dependencies in `~/Library/Caches/PreStocksGuardian/` so cloud storage cannot evict a package while Next.js is reading it. The dev server listens on `127.0.0.1:3000`. This workspace uses Next.js' supported Webpack mode because Turbopack rejects a dependency symlink outside the project. Stop the dev server before running a production build; Next.js uses the same `.next` output directory for both commands.
-
-## API today
-
-| Route | Purpose |
-| --- | --- |
-| `GET /api/v1/assets` | Current official asset data plus neutral premium calculation |
-| `GET /api/v1/events` | Reviewed lifecycle snapshots and provenance |
-| `GET /api/v1/events/SPACEX` | Reviewed events for one symbol |
-| `POST /api/v1/evaluate` | Run the engine on an explicitly simulated balance |
-
-Example simulation request:
+On macOS when the checkout is inside Documents, npm scripts place `node_modules` and generated `.next` output in `~/Library/Caches/PreStocksGuardian/` to avoid cloud eviction during local runs. The dev server listens on `127.0.0.1:3000` and uses Next.js Webpack mode because the dependency symlink is outside the project. Stop `npm run dev` before `npm run build`, as both use the same `.next` output.
 
 ```bash
-curl -sS -X POST http://localhost:3000/api/v1/evaluate \
-  -H 'Content-Type: application/json' \
-  -d '{"symbol":"SPACEX","simulatedBalance":12.4}'
+npm test
+npm run typecheck
+npm run build
+npm audit --omit=dev
 ```
 
-The response includes `mode: "simulation"` and `holding.simulated: true`. This endpoint does not imply that a wallet owns the tokens. The planned `GET /api/v1/wallet/:address/actions` route will require live Solana token-account lookup and mint matching before it can make a wallet-specific claim.
+## API
+
+| Route | Meaning |
+| --- | --- |
+| `GET /api/v1/assets` | Official asset registry and neutral premium calculation |
+| `GET /api/v1/events` | Reviewed lifecycle snapshots with provenance |
+| `GET /api/v1/events/:symbol` | Reviewed events for a symbol |
+| `GET /api/v1/lineage/:symbol` | Sourced transitions; historical entries explicitly marked |
+| `GET /api/v1/wallet/:address/continuity` | Live wallet positions and lifecycle states |
+| `POST /api/v1/resolve/plan` | Wallet-specific, derived next-step plan |
+| `POST /api/v1/resolve/quote` | Jupiter route check only for a verified source/destination pair |
+| `POST /api/v1/evaluate` | Explicitly simulated balance evaluation |
+| `GET /api/v1/wallet/:address/actions` | Earlier Guardian response, retained for compatibility |
+
+The live continuity response includes `positions` with exact `rawBalance` strings, `decimals`, fixed-decimal `uiBalance` strings, `lifecycleState`, evaluations, and counts. Empty wallets return empty positions and zero counts. The plan route accepts `{"wallet":"<public address>","symbol":"SPACEX"}`. Its present SpaceX result is `MANUAL_ACTION_REQUIRED`: the notice is sourced, but no destination mint or onchain route is verified. `NO_ACTION_REQUIRED` means no action is recorded in the reviewed provider; it is **not** proof that no real-world event exists. `RESOLVED` must not be inferred from a completed notice; it requires future wallet-level proof.
+
+The quote route accepts the same body. It cannot return `EXECUTABLE` unless the plan has a verified destination, Jupiter returns a current order for the exact source mint, destination mint, amount and wallet, and the returned unsigned transaction decodes and requires that wallet's signature. A missing key is a configuration state, not evidence that no route exists. A route may disappear or a quote may go stale before signing. No signing or broadcast endpoint is exposed.
+
+Invalid wallet addresses return 400. Missing RPC configuration returns 503, RPC rate limits 429, and RPC failures or malformed account data 502. Live responses use `Cache-Control: no-store`. The RPC provider can observe queried public addresses; choose one whose privacy practices suit the deployment.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  A[Official PreStocks asset API] --> B[Validated asset provider]
-  C[Reviewed PreStocks event page] --> D[LifecycleProvider]
-  B --> E[Guardian evaluator]
-  D --> E
-  F[Simulated demo holding] --> E
-  E --> G[Demo screen and evaluate API]
-  B --> H[Assets API]
-  D --> I[Events API]
+  A[PreStocks official API] --> B[Official mint registry]
+  C[Reviewed lifecycle sources] --> D[Lifecycle provider]
+  D --> E[Lineage model]
+  F[Public Solana wallet] --> G[Holding scanner]
+  H[Finalized Solana RPC] --> G
+  B --> G
+  G --> I[Continuity evaluator]
+  D --> I
+  I --> J[Resolution planner]
+  E --> J
+  J --> K[Live wallet UI and API]
+  J -. verified destination only .-> L[Jupiter order adapter]
+  L -. future user review and wallet signature .-> M[Broadcast and rescan]
 ```
 
-The `LifecycleProvider` interface isolates event acquisition from decision logic. An official PreStocks corporate-action source can replace the static provider without changing the evaluator. The evaluator matches events to assets by both symbol and mint, and uses UTC deadlines to expire actions. Missing event coverage is displayed as “No recorded event” in the UI; it is not proof that no corporate action exists.
+The `LifecycleProvider` keeps source acquisition separate from decision logic. A future official corporate-action feed can replace the static snapshot without replacing the evaluator. Every transition carries its source URL, name, and verification time. Unknown destinations, ratios, and execution modes remain `null` or `UNKNOWN`; expired events remain historical and cannot become active actions through input ordering.
 
-## Next implementation gates
+## Remaining proof before a full Continuity flow
 
-1. Add a server-side Solana wallet scanner that resolves token accounts by official mint, validates addresses, handles token decimals exactly, and returns wallet-specific actions. Confirm an RPC endpoint and test against a wallet with known PreStocks holdings.
-2. Add explicit event freshness and editorial re-verification before any action is presented as current beyond the demo.
-3. Publish a small TypeScript SDK against the stable API response schemas.
-4. Add webhook subscriptions only after authentication, delivery retries, and idempotency are designed and tested.
-5. Add a real wallet connection and end-to-end proof. Until then, every balance on the site remains clearly simulated.
+1. Configure mainnet RPC and check a known real PreStocks wallet end to end. Unit tests use mocked RPC data and do not prove a live holding.
+2. Reverify event freshness and obtain sourced destination mints, conversion details, and issuer instructions. The current SpaceX snapshot alone cannot establish an executable route.
+3. With a verified pair and Jupiter API key, test a real current quote. A quote is not an executed swap.
+4. Add wallet review and explicit signing, broadcast, confirmation, then a wallet rescan before any position is called `RESOLVED`. No signed transaction has been tested here.
+5. Add historical replay only after a complete xAI transition is sourced in the repository. Test fixtures for multi-step lineage are synthetic and are not public historical claims.
 
-This tool provides information, not investment advice. PreStocks tokens provide economic exposure under PreStocks' terms; Guardian does not represent ownership of the underlying company.
+PreStocks tokens provide economic exposure under PreStocks' terms. Continuity does not represent ownership of the underlying company or provide investment advice.
