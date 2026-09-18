@@ -38,7 +38,7 @@ const VERIFIED_EVENT_INPUT: LifecycleEvent[] = [
     sourceUrl: "https://prestocks.com/spacex",
     sourceName: "PreStocks SpaceX product page",
     verifiedAt: "2026-09-17T19:15:31Z",
-    notes: "PreStocks says SpaceX tokens must be swapped into SPCXx or another token before the deadline. Guardian does not execute a swap.",
+    notes: "PreStocks says SpaceX tokens must be swapped into SPCXx or another token before the deadline. No destination mint or executable route has been verified for this event.",
   },
 ];
 const VERIFIED_EVENTS: readonly LifecycleEvent[] = VERIFIED_EVENT_INPUT.map(validateLifecycleEvent);
