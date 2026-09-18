@@ -58,3 +58,7 @@ function linkGeneratedDirectory(name, destination) {
 }
 
 linkGeneratedDirectory("node_modules", cachedModules);
+// Generated routes execute from the cache, so Node must find packages in an ancestor.
+const cacheModules = join(cache, "node_modules");
+if (!existsSync(cacheModules)) symlinkSync(cachedModules, cacheModules, "dir");
+linkGeneratedDirectory(".next", join(cache, "next-output"));
