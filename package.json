@@ -11,7 +11,7 @@
     "pretypecheck": "node scripts/prepare-local-dev.mjs",
     "typecheck": "tsc --noEmit",
     "pretest": "node scripts/prepare-local-dev.mjs",
-    "test": "node --import tsx --test lib/guardian.test.ts lib/solana/wallet.test.ts"
+    "test": "node --import tsx --test lib/guardian.test.ts lib/solana/wallet.test.ts lib/continuity.test.ts"
   },
   "dependencies": {
     "@gsap/react": "2.1.2",
