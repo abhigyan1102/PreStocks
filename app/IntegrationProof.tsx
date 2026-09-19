@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { PreStocksActionsView } from "@/components/actionkit";
+import type { ActionPosition, WalletActionsResponse } from "@/sdk";
 import styles from "./IntegrationProof.module.css";
 
 type IntegrationMode = "react" | "sdk" | "rest";
@@ -13,8 +15,11 @@ export function WalletActions({ publicKey }: { publicKey: string }) {
 }`,
   sdk: `import { PreStocksActionKit } from "./sdk";
 
-const kit = new PreStocksActionKit();
-const result = await kit.wallet.getActions(publicKey);`,
+const kit = new PreStocksActionKit({
+  baseUrl: window.location.origin,
+});
+
+const result = await kit.wallet.getActions(wallet);`,
   rest: `GET /api/v1/wallet/:address/actions
 
 // Official holdings + lifecycle state + sourced actions
@@ -27,96 +32,126 @@ const modeLabels: Record<IntegrationMode, string> = {
   rest: "REST API",
 };
 
-export function IntegrationProof() {
+function CodeSurface({ mode, onModeChange }: { mode: IntegrationMode; onModeChange: (mode: IntegrationMode) => void }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyCode() {
+    await navigator.clipboard.writeText(snippets[mode]);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  }
+
+  return (
+    <div className={styles.codeSurface}>
+      <div className={styles.codeTopline}>
+        <span>Add ActionKit</span>
+        <button type="button" onClick={copyCode}>{copied ? "Copied" : "Copy code"}</button>
+      </div>
+      <div className={styles.tabs} role="tablist" aria-label="Integration method">
+        {(Object.keys(modeLabels) as IntegrationMode[]).map((item) => (
+          <button
+            aria-controls="integration-code-panel"
+            aria-selected={mode === item}
+            className={mode === item ? styles.activeTab : ""}
+            id={`integration-tab-${item}`}
+            key={item}
+            onClick={() => { onModeChange(item); setCopied(false); }}
+            role="tab"
+            tabIndex={mode === item ? 0 : -1}
+            type="button"
+          >
+            {modeLabels[item]}
+          </button>
+        ))}
+      </div>
+      <pre aria-labelledby={`integration-tab-${mode}`} id="integration-code-panel" role="tabpanel"><code>{snippets[mode]}</code></pre>
+      <span className={styles.copyStatus} aria-live="polite">{copied ? "Code copied to clipboard." : ""}</span>
+    </div>
+  );
+}
+
+export function IntegrationProof({ examplePosition }: { examplePosition: ActionPosition | null }) {
   const [mode, setMode] = useState<IntegrationMode>("react");
+  const exampleData: WalletActionsResponse = {
+    mode: "live",
+    product: "PreStocks ActionKit",
+    wallet: "INTEGRATION_EXAMPLE",
+    positions: examplePosition ? [examplePosition] : [],
+    summary: {
+      prestocksPositions: examplePosition ? 1 : 0,
+      positionsRequiringAction: examplePosition?.status === "ACTION_REQUIRED" ? 1 : 0,
+    },
+    sources: {
+      assets: "PRESTOCKS_OFFICIAL_API",
+      balances: "SOLANA_RPC",
+      lifecycle: "reviewed source snapshot",
+      actions: "DERIVED",
+    },
+  };
+  const exampleMint = examplePosition?.mint ?? "PreANxuX…rHsfTh";
 
   return (
     <div className={styles.proof}>
       <section className={styles.comparison} aria-labelledby="integration-proof-title">
         <div className={styles.sectionIntro}>
-          <span>Before / after</span>
-          <h3 id="integration-proof-title">The same position.<br />A clearer next step.</h3>
-          <p>A generic token list stops at ownership. ActionKit adds sourced lifecycle context without inventing an executable route.</p>
+          <div>
+            <span className={styles.eyebrow}>Integration example · illustrative balance</span>
+            <h3 id="integration-proof-title">Make the same wallet PreStocks-aware.</h3>
+          </div>
+          <p>The example below uses sourced product and lifecycle data with an illustrative 12.40 token balance. It does not represent live wallet activity or an executable migration.</p>
         </div>
 
         <div className={styles.compareGrid}>
-          <article className={styles.beforePanel}>
-            <span className={styles.panelLabel}>Standard SPL wallet</span>
-            <h4>A wallet sees a token.</h4>
+          <article className={`integration-stage ${styles.integrationStage} ${styles.beforePanel}`}>
+            <span className={styles.stageLabel}>Before</span>
+            <h4>Generic Solana wallet</h4>
+            <div className={styles.positionHeadline}><strong>SPACEX</strong><span>12.40</span></div>
             <dl>
-              <div><dt>Identity</dt><dd>Mint address</dd></div>
-              <div><dt>Position</dt><dd>Raw balance</dd></div>
-              <div><dt>Next step</dt><dd>Unknown</dd></div>
+              <div><dt>Mint address</dt><dd>{exampleMint}</dd></div>
+              <div><dt>Token balance</dt><dd>12.40</dd></div>
+              <div><dt>Context</dt><dd>Unknown SPL token</dd></div>
+              <div><dt>Next step</dt><dd>Unavailable</dd></div>
             </dl>
           </article>
 
-          <article className={styles.afterPanel}>
-            <span className={styles.panelLabel}>With ActionKit</span>
-            <h4>ActionKit sees what happens next.</h4>
-            <dl>
-              <div><dt>Identity</dt><dd>Official PreStocks mint</dd></div>
-              <div><dt>Lifecycle</dt><dd>Reviewed IPO notice</dd></div>
-              <div><dt>Holder state</dt><dd>Action required</dd></div>
-              <div><dt>Execution</dt><dd>Unavailable until destination and route are verified</dd></div>
-              <div><dt>Evidence</dt><dd>Official source URL and verification time</dd></div>
+          <span className={styles.connector} aria-hidden="true">→</span>
+
+          <article className={`integration-stage ${styles.integrationStage} ${styles.addPanel}`}>
+            <CodeSurface mode={mode} onModeChange={setMode} />
+            <p>Repository usage. The package is not published to npm.</p>
+          </article>
+
+          <span className={styles.connector} aria-hidden="true">→</span>
+
+          <article className={`integration-stage ${styles.integrationStage} ${styles.afterPanel}`}>
+            <span className={styles.stageLabel}>After · example ActionKit output</span>
+            <h4>PreStocks position</h4>
+            <PreStocksActionsView state={{ status: "ready", data: exampleData }} />
+            <dl className={styles.resolutionFacts}>
+              <div><dt>Execution</dt><dd>Not currently verified</dd></div>
+              <div><dt>Resolution</dt><dd>Issuer or manual flow until a verified route exists</dd></div>
             </dl>
           </article>
         </div>
       </section>
 
-      <section className={styles.flow} aria-labelledby="integration-flow-title">
-        <div className={styles.flowHeading}>
-          <span>Integration flow</span>
-          <h3 id="integration-flow-title">From wallet address to an honest next action.</h3>
+      <section className={styles.flagship} aria-labelledby="flagship-title">
+        <div className={styles.flagshipIntro}>
+          <span className={styles.eyebrow}>Flagship API</span>
+          <h3 id="flagship-title">One call.<br />The position&apos;s next action.</h3>
+          <p>The SDK returns official holdings, lifecycle state, normalized actions, and source lineage through the same backend contract.</p>
         </div>
-        <div className={styles.flowGrid}>
-          <article>
-            <span>01</span>
-            <h4>Detect official holdings.</h4>
-            <p>Match live SPL and Token-2022 accounts against the official PreStocks mint registry.</p>
-          </article>
-          <article>
-            <span>02</span>
-            <h4>Attach sourced events.</h4>
-            <p>Preserve the source URL, verification time, deadline, destination facts, and unknown values.</p>
-          </article>
-          <article>
-            <span>03</span>
-            <h4>Return normalized actions.</h4>
-            <p>Return explicit informational, issuer-managed, manual, route-check, or unavailable states.</p>
-          </article>
-        </div>
-      </section>
-
-      <section className={styles.snippets} aria-labelledby="integration-code-title">
-        <div className={styles.snippetIntro}>
-          <span>Choose your surface</span>
-          <h3 id="integration-code-title">One backend contract.<br />Three integration paths.</h3>
-          <p>The React component calls the typed SDK. The SDK calls the same backend APIs. Lifecycle decisions stay on the server.</p>
-        </div>
-        <div className={styles.codeSurface}>
-          <div className={styles.tabs} role="tablist" aria-label="Integration method">
-            {(Object.keys(modeLabels) as IntegrationMode[]).map((item) => (
-              <button
-                aria-controls="integration-code-panel"
-                aria-selected={mode === item}
-                className={mode === item ? styles.activeTab : ""}
-                id={`integration-tab-${item}`}
-                key={item}
-                onClick={() => setMode(item)}
-                role="tab"
-                type="button"
-              >
-                {modeLabels[item]}
-              </button>
-            ))}
+        <div className={styles.apiFlow}>
+          <div className={styles.walletNode}><span>Wallet</span><strong>7F3k9Q2mN8eP…v4Z1</strong></div>
+          <span className={styles.apiArrow} aria-hidden="true">→</span>
+          <pre className={styles.apiCall}><code><span>const result =</span>{"\n"}await kit.wallet.getActions(wallet);</code></pre>
+          <span className={styles.apiArrow} aria-hidden="true">→</span>
+          <div className={styles.apiOutput}>
+            <div><strong>OPENAI</strong><span>ACTIVE</span></div>
+            <div><strong>SPACEX</strong><span className={styles.required}>ACTION_REQUIRED</span></div>
           </div>
-          <pre
-            aria-labelledby={`integration-tab-${mode}`}
-            id="integration-code-panel"
-            role="tabpanel"
-          ><code>{snippets[mode]}</code></pre>
         </div>
+        <div className={styles.apiNote}><span>Repository usage</span><span>Read-only response</span><span>No wallet signature</span></div>
       </section>
     </div>
   );

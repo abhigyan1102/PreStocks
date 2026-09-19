@@ -3,47 +3,45 @@
 }
 
 .comparison,
-.flow,
-.snippets {
+.flagship {
   border-top: 1px solid var(--rule);
   padding-top: 88px;
 }
 
-.flow,
-.snippets {
-  margin-top: 118px;
+.flagship {
+  margin-top: 138px;
 }
 
-.sectionIntro,
-.flowHeading {
+.sectionIntro {
+  align-items: end;
   display: grid;
-  gap: 26px 48px;
-  grid-template-columns: minmax(170px, 0.42fr) minmax(0, 1.05fr) minmax(280px, 0.53fr);
-  margin-bottom: 54px;
+  gap: 42px;
+  grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+  margin-bottom: 58px;
 }
 
-.sectionIntro > span,
-.flowHeading > span,
-.snippetIntro > span {
+.eyebrow,
+.stageLabel,
+.codeTopline > span {
   color: var(--rust);
+  display: block;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
 }
 
 .sectionIntro h3,
-.flowHeading h3,
-.snippetIntro h3 {
-  font-size: clamp(38px, 4.2vw, 66px);
-  letter-spacing: -0.065em;
-  line-height: 1;
-  margin: 0;
+.flagshipIntro h3 {
+  font-size: clamp(42px, 5vw, 78px);
+  letter-spacing: -0.07em;
+  line-height: 0.98;
+  margin: 26px 0 0;
+  max-width: 1040px;
 }
 
 .sectionIntro p,
-.snippetIntro p {
-  align-self: end;
+.flagshipIntro p {
   color: var(--muted);
   font-size: 17px;
   line-height: 1.55;
@@ -51,125 +49,124 @@
 }
 
 .compareGrid {
+  align-items: stretch;
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  grid-template-columns: minmax(220px, 0.92fr) 44px minmax(300px, 1.12fr) 44px minmax(260px, 1fr);
+}
+
+.integrationStage {
+  min-width: 0;
 }
 
 .beforePanel,
 .afterPanel {
-  min-height: 500px;
-  padding: clamp(30px, 3.5vw, 56px);
-}
-
-.beforePanel {
   border: 1px solid var(--rule);
-}
-
-.afterPanel {
-  background: #f0ece5;
-}
-
-.panelLabel {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  padding: clamp(25px, 2.5vw, 40px);
 }
 
 .beforePanel h4,
 .afterPanel h4 {
-  font-size: clamp(32px, 3.4vw, 52px);
+  font-size: clamp(29px, 2.6vw, 43px);
   letter-spacing: -0.055em;
   line-height: 1;
-  margin: 22px 0 46px;
+  margin: 22px 0 36px;
+}
+
+.positionHeadline {
+  align-items: baseline;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  padding-bottom: 20px;
+}
+
+.positionHeadline strong {
+  font-size: 28px;
+  letter-spacing: -0.04em;
+}
+
+.positionHeadline span {
+  font: 22px ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .beforePanel dl,
-.afterPanel dl {
+.resolutionFacts {
   margin: 0;
 }
 
 .beforePanel dl div,
-.afterPanel dl div {
-  border-top: 1px solid var(--rule);
-  display: grid;
-  gap: 22px;
-  grid-template-columns: minmax(110px, 0.7fr) 1.3fr;
-  padding: 17px 0;
+.resolutionFacts div {
+  border-bottom: 1px solid var(--rule);
+  padding: 16px 0;
 }
 
 .beforePanel dt,
-.afterPanel dt {
+.resolutionFacts dt {
   color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 5px;
 }
 
 .beforePanel dd,
-.afterPanel dd {
+.resolutionFacts dd {
   font-weight: 700;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
-.flowHeading h3 {
-  grid-column: 2 / 4;
-  max-width: 850px;
+.connector,
+.apiArrow {
+  align-items: center;
+  display: flex;
+  font-size: 30px;
+  justify-content: center;
 }
 
-.flowGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.addPanel {
+  background: var(--ink);
+  color: var(--paper);
+  display: flex;
+  flex-direction: column;
 }
 
-.flowGrid article {
-  border-top: 1px solid var(--ink);
-  min-height: 290px;
-  padding: 28px 34px 38px 0;
-}
-
-.flowGrid article:not(:first-child) {
-  border-left: 1px solid var(--rule);
-  padding-left: 34px;
-}
-
-.flowGrid article > span {
-  color: var(--rust);
-  font-size: 42px;
-  font-weight: 700;
-  letter-spacing: -0.05em;
-}
-
-.flowGrid h4 {
-  font-size: clamp(25px, 2.3vw, 38px);
-  letter-spacing: -0.05em;
-  line-height: 1.05;
-  margin: 38px 0 16px;
-}
-
-.flowGrid p {
-  color: var(--muted);
-  font-size: 16px;
-  line-height: 1.55;
-  margin: 0;
-}
-
-.snippets {
-  display: grid;
-  gap: clamp(50px, 7vw, 110px);
-  grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
-}
-
-.snippetIntro h3 {
-  margin-top: 28px;
-}
-
-.snippetIntro p {
-  margin-top: 28px;
+.addPanel > p {
+  color: #aeb1ad;
+  font-size: 12px;
+  margin: auto 28px 25px;
 }
 
 .codeSurface {
-  align-self: start;
-  background: var(--ink);
   color: var(--paper);
   min-width: 0;
+  position: relative;
+}
+
+.codeTopline {
+  align-items: center;
+  background: var(--rust);
+  display: flex;
+  justify-content: space-between;
+  min-height: 58px;
+  padding: 14px 20px;
+}
+
+.codeTopline > span {
+  color: white;
+}
+
+.codeTopline button {
+  background: transparent;
+  border: 1px solid #ffffff80;
+  border-radius: 3px;
+  color: white;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 8px 11px;
+}
+
+.codeTopline button:hover {
+  background: #ffffff18;
 }
 
 .tabs {
@@ -181,104 +178,265 @@
   background: transparent;
   border: 0;
   border-bottom: 1px solid #444744;
-  color: #b9bcb7;
+  color: #aeb1ad;
   cursor: pointer;
-  padding: 20px 12px;
+  min-width: 0;
+  padding: 18px 8px;
 }
 
-.tabs button:hover {
+.tabs button:hover,
+.tabs .activeTab {
   color: white;
 }
 
 .tabs .activeTab {
-  background: var(--rust);
-  color: white;
+  border-bottom: 3px solid var(--rust);
 }
 
 .codeSurface pre {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 13px;
-  line-height: 1.75;
+  font-size: clamp(12px, 1vw, 14px);
+  line-height: 1.7;
   margin: 0;
-  min-height: 240px;
+  min-height: 275px;
   overflow-x: auto;
-  padding: clamp(24px, 3vw, 42px);
+  padding: clamp(24px, 2.5vw, 36px) 24px;
   white-space: pre-wrap;
 }
 
-@media (max-width: 900px) {
-  .sectionIntro,
-  .flowHeading,
-  .snippets {
+.copyStatus {
+  height: 1px;
+  left: -10000px;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+}
+
+.afterPanel {
+  background: #f0ece5;
+}
+
+.afterPanel :global(.ak-position) {
+  border-top-color: var(--ink);
+  padding-top: 18px;
+}
+
+.afterPanel :global(.ak-symbol),
+.afterPanel :global(.ak-balance) {
+  font-size: 20px;
+}
+
+.afterPanel :global(.ak-meta) {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.afterPanel :global(.ak-position-header) {
+  padding-bottom: 18px;
+}
+
+.afterPanel :global(.ak-market) {
+  border-bottom: 1px solid var(--rule);
+  border-top: 1px solid var(--rule);
+  display: grid;
+  gap: 4px;
+  padding: 15px 0;
+}
+
+.afterPanel :global(.ak-market span) {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.afterPanel :global(.ak-action) {
+  padding: 15px 0;
+}
+
+.afterPanel :global(.ak-action-description),
+.afterPanel :global(.ak-source) {
+  font-size: 12px;
+}
+
+.afterPanel :global(.ak-action-link) {
+  color: var(--rust);
+  font-size: 13px;
+}
+
+.resolutionFacts {
+  margin-top: 8px;
+}
+
+.flagshipIntro {
+  display: grid;
+  gap: 22px 54px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+}
+
+.flagshipIntro .eyebrow,
+.flagshipIntro h3 {
+  grid-column: 1;
+}
+
+.flagshipIntro h3 {
+  margin-top: 0;
+}
+
+.flagshipIntro p {
+  align-self: end;
+  grid-column: 2;
+  grid-row: 1 / 3;
+}
+
+.apiFlow {
+  align-items: stretch;
+  display: grid;
+  grid-template-columns: minmax(160px, 0.55fr) 55px minmax(360px, 1.4fr) 55px minmax(230px, 0.7fr);
+  margin-top: 68px;
+}
+
+.walletNode {
+  align-self: center;
+  border: 1px solid var(--ink);
+  display: grid;
+  gap: 12px;
+  padding: 25px 20px;
+}
+
+.walletNode span {
+  color: var(--muted);
+  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-transform: uppercase;
+}
+
+.walletNode strong {
+  font: 14px ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow-wrap: anywhere;
+}
+
+.apiCall {
+  align-items: center;
+  background: var(--ink);
+  color: white;
+  display: flex;
+  font: clamp(15px, 1.55vw, 22px)/1.7 ui-monospace, SFMono-Regular, Menlo, monospace;
+  margin: 0;
+  min-height: 190px;
+  overflow-x: auto;
+  padding: clamp(25px, 3.4vw, 50px);
+  white-space: pre-wrap;
+}
+
+.apiCall span {
+  color: #ef744f;
+}
+
+.apiOutput {
+  border-top: 1px solid var(--ink);
+  display: grid;
+  grid-template-rows: repeat(2, 1fr);
+}
+
+.apiOutput div {
+  align-items: center;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+}
+
+.apiOutput span {
+  color: var(--green);
+  font-size: 13px;
+}
+
+.apiOutput .required {
+  color: var(--rust);
+}
+
+.apiNote {
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  gap: 30px;
+  justify-content: flex-end;
+  padding: 17px 0;
+}
+
+.apiNote span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 1050px) {
+  .compareGrid,
+  .apiFlow {
     grid-template-columns: 1fr;
   }
 
-  .sectionIntro h3,
-  .flowHeading h3 {
-    grid-column: auto;
+  .connector,
+  .apiArrow {
+    min-height: 58px;
+    transform: rotate(90deg);
   }
 
-  .sectionIntro p,
-  .snippetIntro p {
-    max-width: 680px;
+  .apiFlow {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 760px;
   }
 
-  .compareGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .beforePanel,
-  .afterPanel {
-    min-height: 0;
+  .apiOutput {
+    min-height: 160px;
   }
 }
 
-@media (max-width: 680px) {
+@media (max-width: 760px) {
   .proof {
     margin-top: 72px;
   }
 
   .comparison,
-  .flow,
-  .snippets {
+  .flagship {
     padding-top: 62px;
   }
 
-  .flow,
-  .snippets {
-    margin-top: 84px;
+  .flagship {
+    margin-top: 90px;
   }
 
-  .flowGrid {
+  .sectionIntro,
+  .flagshipIntro {
     grid-template-columns: 1fr;
   }
 
-  .flowGrid article {
-    min-height: 0;
-    padding: 26px 0 44px;
-  }
-
-  .flowGrid article:not(:first-child) {
-    border-left: 0;
-    padding-left: 0;
-  }
-
-  .flowGrid h4 {
-    margin-top: 24px;
+  .sectionIntro p,
+  .flagshipIntro p {
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .tabs {
     grid-template-columns: 1fr;
   }
 
-  .beforePanel,
-  .afterPanel {
-    padding: 30px 22px;
+  .codeSurface pre {
+    min-height: 230px;
   }
 
-  .beforePanel dl div,
-  .afterPanel dl div {
-    grid-template-columns: 1fr;
-    gap: 5px;
+  .apiNote {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .beforePanel,
+  .afterPanel {
+    padding: 28px 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .integrationStage {
+    opacity: 1;
+    transform: none;
   }
 }

@@ -1,10 +1,14 @@
 import type { LifecycleEvent, PositionEvaluation, PreStockAsset } from "@/lib/domain";
+import { createActionKitPositions } from "@/lib/actionkit";
 import { demoHoldings } from "@/lib/demo";
 import { evaluateHolding, resolveLifecycleEvent } from "@/lib/guardian";
 import { lifecycleProvider } from "@/lib/lifecycle";
+import { transitionFromEvent } from "@/lib/lineage";
 import { getPreStocks, premiumPercent } from "@/lib/prestocks";
+import type { ActionPosition } from "@/sdk";
 import { IntegrationProof } from "./IntegrationProof";
 import { Motion } from "./Motion";
+import { ProductModel } from "./ProductModel";
 import { WalletLookup } from "./WalletLookup";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +66,26 @@ export default async function Home() {
   });
   const action = evaluations.find((item) => item.lifecycle.state === "ACTION_REQUIRED");
   const normal = evaluations.filter((item) => item.lifecycle.state === "ACTIVE");
+  const integrationPosition = action
+    ? createActionKitPositions([action], events.map(transitionFromEvent))[0]
+    : null;
+  const integrationExample: ActionPosition | null = integrationPosition ? {
+    symbol: integrationPosition.asset.symbol,
+    name: integrationPosition.asset.name,
+    mint: integrationPosition.asset.mint,
+    balance: integrationPosition.holding.uiBalance,
+    rawBalance: integrationPosition.holding.rawBalance,
+    decimals: integrationPosition.holding.decimals,
+    status: integrationPosition.status,
+    market: {
+      tokenPrice: integrationPosition.asset.tokenPrice,
+      markPrice: integrationPosition.asset.markPrice,
+      source: "PRESTOCKS_OFFICIAL_API",
+    },
+    actions: integrationPosition.actions.filter((item) =>
+      item.type === "LIFECYCLE_REVIEW" || item.type === "MIGRATE" || item.type === "SWAP" || item.type === "MANUAL_ACTION",
+    ),
+  } : null;
   const displayedAssets = ["SPACEX", "OPENAI", "ANTHROPIC"]
     .map((symbol) => assets.find((asset) => asset.symbol === symbol))
     .filter((asset): asset is PreStockAsset => Boolean(asset));
@@ -85,7 +109,7 @@ export default async function Home() {
         <p>Asset discovery, wallet holdings, position actions, and lifecycle transitions through one integration.</p>
         <div className="hero-actions">
           <a className="button button-dark" href="#wallet-lookup">Try ActionKit <span aria-hidden="true">↗</span></a>
-          <a className="button button-outline" href="#developers">Developer quickstart <span aria-hidden="true">↗</span></a>
+          <a className="button button-outline" href="#developers">View integration <span aria-hidden="true">↗</span></a>
         </div>
       </div>
       <div className="hero-art" aria-hidden="true">
@@ -95,6 +119,8 @@ export default async function Home() {
         <div className="stage stage-action"><span className="stage-name">Holder action</span><span className="stage-disc"><b /></span></div>
       </div>
     </section>
+
+    <ProductModel />
 
     <WalletLookup />
 
@@ -125,6 +151,23 @@ export default async function Home() {
         </div> : <p className="empty-demo">No current action is available in the reviewed snapshot for these demo holdings.</p>}
     </section>
 
+    <section className="developer-section page-gutter" id="developers" aria-labelledby="developer-title">
+      <div className="section-head"><span>Developer integration</span><span>Repository API · read-only</span></div>
+      <h2 className="developer-heading" id="developer-title">{["One", "integration.", "Every", "position's", "next", "action."].map((word, index) => <span className="reveal-word" key={`${word}-${index}`}>{word} </span>)}</h2>
+      <p>Add PreStocks asset identity, holdings, actions and lifecycle awareness to an existing Solana app without rebuilding PreStocks-specific logic.</p>
+      <IntegrationProof examplePosition={integrationExample} />
+    </section>
+
+    <section className="source-section page-gutter" aria-labelledby="source-title">
+      <div className="section-head"><span>Source ledger</span><span>Trace every claim</span></div>
+      <h2 id="source-title">A visible trail from event to action.</h2>
+      <div className="source-ledger">
+        <a className="source-card" href="https://prestocks.com/api/prestocks" target="_blank" rel="noopener noreferrer"><strong>Asset identity</strong><span>PreStocks official API</span><span aria-hidden="true">↗</span></a>
+        <a className="source-card" href="https://prestocks.com/spacex" target="_blank" rel="noopener noreferrer"><strong>SpaceX event</strong><span>PreStocks product page</span><span aria-hidden="true">↗</span></a>
+        <a className="source-card" href="https://prestocks.com/faq?tab=mechanics" target="_blank" rel="noopener noreferrer"><strong>Lifecycle rules</strong><span>PreStocks FAQ</span><span aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+
     <section className="assets-section page-gutter" id="assets" aria-labelledby="assets-title">
       <div className="assets-copy">
         <span className="section-kicker">Official assets</span>
@@ -138,24 +181,6 @@ export default async function Home() {
         <a className="text-link" href="https://prestocks.com/products" target="_blank" rel="noopener noreferrer">Explore all official assets <span aria-hidden="true">↗</span></a>
       </div>
       <div className="assets-art" aria-hidden="true"><div className="assets-planet" /><div className="assets-ring ring-one" /><div className="assets-ring ring-two" /></div>
-    </section>
-
-    <section className="source-section page-gutter" aria-labelledby="source-title">
-      <div className="section-head"><span>Source ledger</span><span>Trace every claim</span></div>
-      <h2 id="source-title">A visible trail from event to action.</h2>
-      <div className="source-ledger">
-        <a className="source-card" href="https://prestocks.com/api/prestocks" target="_blank" rel="noopener noreferrer"><strong>Asset identity</strong><span>PreStocks official API</span><span aria-hidden="true">↗</span></a>
-        <a className="source-card" href="https://prestocks.com/spacex" target="_blank" rel="noopener noreferrer"><strong>SpaceX event</strong><span>PreStocks product page</span><span aria-hidden="true">↗</span></a>
-        <a className="source-card" href="https://prestocks.com/faq?tab=mechanics" target="_blank" rel="noopener noreferrer"><strong>Lifecycle rules</strong><span>PreStocks FAQ</span><span aria-hidden="true">↗</span></a>
-      </div>
-    </section>
-
-    <section className="developer-section page-gutter" id="developers" aria-labelledby="developer-title">
-      <div className="section-head"><span>For developers</span><span>Read-only API</span></div>
-      <h2 className="developer-heading" id="developer-title">{["One", "integration.", "Every", "position's", "next", "action."].map((word, index) => <span className="reveal-word" key={`${word}-${index}`}>{word} </span>)}</h2>
-      <p>Read official assets, live wallet positions, and sourced actions through one API.</p>
-      <div className="developer-actions"><a className="button button-dark" href="#wallet-lookup">Try a wallet <span aria-hidden="true">↗</span></a><a className="button button-outline" href="/api/v1/assets" target="_blank" rel="noopener noreferrer">View asset API <span aria-hidden="true">↗</span></a></div>
-      <IntegrationProof />
     </section>
     <footer className="site-footer page-gutter"><strong>PreStocks ActionKit</strong><span>Official assets · live holdings · normalized actions · continuity</span></footer>
   </main>;
