@@ -36,7 +36,8 @@ test("React action component renders an action-required position with provenance
   } satisfies WalletActionsResponse;
   const html = render({ status: "ready", data });
   assert.match(html, /ACTION REQUIRED/);
+  assert.match(html, /Official market data/);
+  assert.match(html, /Token \$120\.00 · Mark \$100\.00/);
   assert.match(html, /Review IPO notice/);
   assert.match(html, /PreStocks SpaceX page/);
 });
-
