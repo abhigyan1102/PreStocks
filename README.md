@@ -4,6 +4,25 @@ Make any Solana wallet or application PreStocks-native.
 
 ActionKit combines official asset discovery, exact wallet holdings, normalized position actions, and lifecycle continuity through one integration. Continuity is its differentiated lifecycle module: it connects reviewed corporate events to real wallet positions and determines the next supported step. An event source establishes **what changed**. An execution router separately establishes **whether an onchain route exists now**. Neither fact implies the other.
 
+## Live deployment
+
+**Production:** [https://6764jzr4.insforge.site](https://6764jzr4.insforge.site)
+
+The canonical product and judge experience is `/`. The integration proof, before/after comparison, and React, SDK, and REST examples are at [`/#developers`](https://6764jzr4.insforge.site/#developers). The former `/demo/integration` path permanently redirects to that section.
+
+The application is deployed through the linked InsForge project using its Vercel hosting provider. Production has one required server-side environment variable, `SOLANA_RPC_URL`. `JUPITER_API_KEY` is intentionally absent because no reviewed transition currently has a verified destination mint. No secret is exposed to the browser or stored in this repository.
+
+Quick production checks:
+
+```bash
+curl https://6764jzr4.insforge.site/api/v1/assets
+curl https://6764jzr4.insforge.site/api/v1/lineage/SPACEX
+curl https://6764jzr4.insforge.site/api/v1/wallet/6GJbPKBtovsrMEEMcic5KMi5tswh9qSyT5ZYLMqEwNgt/actions
+curl -X POST https://6764jzr4.insforge.site/api/v1/resolve/plan \
+  -H 'content-type: application/json' \
+  -d '{"wallet":"6GJbPKBtovsrMEEMcic5KMi5tswh9qSyT5ZYLMqEwNgt","symbol":"SPACEX"}'
+```
+
 ## What works today
 
 - The [official PreStocks API](https://prestocks.com/api/prestocks) supplies asset identity and `contract_address` values. These exact mint addresses are the trusted registry; token symbols and metadata are never used to identify holdings. The server revalidates asset data every 60 seconds.
@@ -126,12 +145,24 @@ flowchart LR
 
 The `LifecycleProvider` keeps source acquisition separate from decision logic. A future official corporate-action feed can replace the static snapshot without replacing the evaluator. Every transition carries its source URL, name, and verification time. Unknown destinations, ratios, and execution modes remain `null` or `UNKNOWN`; expired events remain historical and cannot become active actions through input ordering.
 
+## Production verification
+
+Verified on 20 September 2026 against Solana mainnet through the configured production RPC:
+
+- `GET /api/v1/assets` returned 200 with eight assets from `PRESTOCKS_OFFICIAL_API`.
+- The public onchain wallet `6GJbPKBtovsrMEEMcic5KMi5tswh9qSyT5ZYLMqEwNgt` had 17 token accounts across SPL Token and Token-2022. ActionKit returned 200 with five exact-mint PreStocks positions: ANDURIL, FIGUREAI, NEURALINK, OPENAI, and SPACEX.
+- `GET /api/v1/wallet/:address/actions` returned sourced market actions plus one SpaceX `ACTION_REQUIRED` lifecycle state. `POST /api/v1/resolve/plan` returned 200 with `MANUAL_ACTION_REQUIRED`, no destination mint, and no claimed executable route.
+- A newly generated public key with zero token accounts returned 200 and an empty position list. A malformed address returned 400, a valid wallet without the requested position returned 404, and an unknown symbol returned 400.
+- `GET /api/v1/lineage/SPACEX` returned 200 with provider mode `reviewed-static`, the source URL, and the verification timestamp.
+- The homepage was checked at 1440 × 900 and 390 × 844 with no horizontal document overflow or browser console errors.
+
+The holder example was discovered from public mint-filtered token-account data. It proves that the production scanner recognizes live onchain holdings; it does not identify the wallet owner or prove that anyone participating in this project controls that wallet.
+
 ## Remaining proof before a full Continuity flow
 
-1. Check a known real PreStocks-holding mainnet wallet end to end. The RPC integration has been verified against a public mainnet wallet with normal SPL accounts and a zero-PreStocks result; this does not prove a live PreStocks holding.
-2. Reverify event freshness and obtain sourced destination mints, conversion details, and issuer instructions. The current SpaceX snapshot alone cannot establish an executable route.
-3. With a verified pair and Jupiter API key, test a real current quote. A quote is not an executed swap.
-4. Add wallet review and explicit signing, broadcast, confirmation, then a wallet rescan before any position is called `RESOLVED`. No signed transaction has been tested here.
-5. Add historical replay only after a complete xAI transition is sourced in the repository. Test fixtures for multi-step lineage are synthetic and are not public historical claims.
+1. Reverify event freshness and obtain sourced destination mints, conversion details, and issuer instructions. The current SpaceX snapshot alone cannot establish an executable route.
+2. With a verified pair and Jupiter API key, test a real current quote. A quote is not an executed swap.
+3. Add wallet review and explicit signing, broadcast, confirmation, then a wallet rescan before any position is called `RESOLVED`. No signed transaction has been tested here.
+4. Add historical replay only after a complete xAI transition is sourced in the repository. Test fixtures for multi-step lineage are synthetic and are not public historical claims.
 
 PreStocks tokens provide economic exposure under PreStocks' terms. Continuity does not represent ownership of the underlying company or provide investment advice.
