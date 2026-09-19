@@ -133,7 +133,8 @@ export class PreStocksActionKit {
   }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await this.fetcher(`${this.baseUrl}${path}`, {
+    const fetcher = this.fetcher;
+    const response = await fetcher(`${this.baseUrl}${path}`, {
       ...init,
       headers: { Accept: "application/json", ...init?.headers },
     });
@@ -152,4 +153,3 @@ export class PreStocksActionKit {
     return payload as T;
   }
 }
-

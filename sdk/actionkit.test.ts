@@ -53,3 +53,11 @@ test("SDK rejects non-JSON upstream responses", async () => {
   );
 });
 
+test("SDK invokes browser fetch without binding it to the client", async () => {
+  const fetcher = function (this: unknown) {
+    assert.equal(this, undefined);
+    return Promise.resolve(json({ source: "official", assets: [] }));
+  };
+  const kit = new PreStocksActionKit({ fetch: fetcher as typeof fetch });
+  await kit.assets.list();
+});
