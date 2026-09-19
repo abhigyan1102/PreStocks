@@ -1,7 +1,7 @@
+import { isAddress } from "@solana/kit";
 import type { PreStockAsset } from "./domain";
 
 const API_URL = "https://prestocks.com/api/prestocks";
-const BASE58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
 interface ApiAsset {
   name: unknown;
@@ -32,7 +32,7 @@ function officialUrl(value: unknown): string {
   }
 }
 
-function parseAsset(value: unknown): PreStockAsset {
+export function parsePreStockAsset(value: unknown): PreStockAsset {
   if (!value || typeof value !== "object") throw new Error("Invalid PreStocks asset");
   const input = value as ApiAsset;
   if (
@@ -40,7 +40,7 @@ function parseAsset(value: unknown): PreStockAsset {
     typeof input.symbol !== "string" ||
     !/^[A-Z0-9]{1,24}$/.test(input.symbol) ||
     typeof input.contract_address !== "string" ||
-    !BASE58.test(input.contract_address)
+    !isAddress(input.contract_address)
   ) {
     throw new Error("PreStocks asset is missing identity fields");
   }
@@ -59,6 +59,18 @@ function parseAsset(value: unknown): PreStockAsset {
   };
 }
 
+export function parsePreStocksAssets(data: unknown): PreStockAsset[] {
+  if (!Array.isArray(data)) throw new Error("PreStocks API returned an invalid list");
+  const assets = data.map(parsePreStockAsset);
+  if (new Set(assets.map((asset) => asset.mint)).size !== assets.length) {
+    throw new Error("PreStocks API returned duplicate token mints");
+  }
+  if (new Set(assets.map((asset) => asset.symbol)).size !== assets.length) {
+    throw new Error("PreStocks API returned duplicate asset symbols");
+  }
+  return assets;
+}
+
 export async function getPreStocks(): Promise<PreStockAsset[]> {
   const response = await fetch(API_URL, {
     next: { revalidate: 60 },
@@ -66,12 +78,7 @@ export async function getPreStocks(): Promise<PreStockAsset[]> {
   });
   if (!response.ok) throw new Error(`PreStocks API returned ${response.status}`);
   const data: unknown = await response.json();
-  if (!Array.isArray(data)) throw new Error("PreStocks API returned an invalid list");
-  const assets = data.map(parseAsset);
-  if (new Set(assets.map((asset) => asset.mint)).size !== assets.length) {
-    throw new Error("PreStocks API returned duplicate token mints");
-  }
-  return assets;
+  return parsePreStocksAssets(data);
 }
 
 export function premiumPercent(asset: PreStockAsset): number | null {
