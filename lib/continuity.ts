@@ -1,4 +1,4 @@
-import type { GuardianEvaluation, Holding, LifecycleEvent, PreStockAsset } from "./domain";
+import type { Holding, LifecycleEvent, PositionEvaluation, PreStockAsset } from "./domain";
 import { evaluateHolding } from "./guardian";
 import { lifecycleProvider } from "./lifecycle";
 import { transitionFromEvent } from "./lineage";
@@ -14,7 +14,7 @@ export interface ContinuityPosition {
   rawBalance: string;
   decimals: number;
   uiBalance: string;
-  lifecycleState: GuardianEvaluation["lifecycle"]["state"];
+  lifecycleState: PositionEvaluation["lifecycle"]["state"];
   sourceEventId: string | null;
 }
 
@@ -23,7 +23,7 @@ export async function scanWalletContinuity(
   assets: PreStockAsset[],
   events: LifecycleEvent[],
   rpcClient: WalletRpcClient,
-): Promise<{ holdings: Holding[]; evaluations: GuardianEvaluation[]; positions: ContinuityPosition[] }> {
+): Promise<{ holdings: Holding[]; evaluations: PositionEvaluation[]; positions: ContinuityPosition[] }> {
   const holdings = await scanPreStocksWallet(wallet, assets, rpcClient);
   const byMint = new Map(assets.map((asset) => [asset.mint, asset]));
   const evaluations = holdings.map((holding) => evaluateHolding(byMint.get(holding.mint)!, holding, events));

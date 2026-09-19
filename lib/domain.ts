@@ -52,7 +52,7 @@ export interface Holding {
   simulated: boolean;
 }
 
-export type GuardianState =
+export type PositionState =
   | "ACTIVE"
   | "WATCH"
   | "ACTION_REQUIRED"
@@ -60,15 +60,73 @@ export type GuardianState =
   | "COMPLETED"
   | "EXPIRED";
 
-export interface GuardianEvaluation {
+export interface PositionEvaluation {
   asset: PreStockAsset;
   holding: Holding;
   lifecycle: {
-    state: GuardianState;
+    state: PositionState;
     event: LifecycleEvent | null;
   };
   actions: Array<{ type: "REVIEW"; label: string; url: string }>;
   severity: "none" | "info" | "warning" | "critical";
+}
+
+/** @deprecated Use PositionState. Retained while older integrations migrate. */
+export type GuardianState = PositionState;
+/** @deprecated Use PositionEvaluation. Retained while older integrations migrate. */
+export type GuardianEvaluation = PositionEvaluation;
+
+export type PositionActionType =
+  | "VIEW"
+  | "TRADE"
+  | "VIEW_MARK"
+  | "VIEW_DETAILS"
+  | "LIFECYCLE_REVIEW"
+  | "MIGRATE"
+  | "SWAP"
+  | "CLAIM"
+  | "REDEEM"
+  | "EXIT"
+  | "OPEN_ISSUER_FLOW"
+  | "MANUAL_ACTION"
+  | "NO_ACTION";
+
+export type ActionExecutionMode = "INFO" | "DEX_SWAP" | "ISSUER_FLOW" | "MANUAL" | "UNAVAILABLE";
+export type ActionStatus = "AVAILABLE" | "REVIEW_REQUIRED" | "UNAVAILABLE" | "EXPIRED";
+export type SourceClass =
+  | "PRESTOCKS_OFFICIAL_API"
+  | "PRESTOCKS_OFFICIAL_PAGE"
+  | "SOLANA_RPC"
+  | "JUPITER_LIVE_QUOTE"
+  | "DERIVED"
+  | "HISTORICAL_REPLAY"
+  | "UNKNOWN";
+
+export interface PositionAction {
+  id: string;
+  type: PositionActionType;
+  asset: { symbol: string; mint: string };
+  label: string;
+  description: string;
+  status: ActionStatus;
+  executable: boolean;
+  executionMode: ActionExecutionMode;
+  source: {
+    type: SourceClass;
+    name: string;
+    url: string | null;
+    verifiedAt: string | null;
+    reason: string;
+  };
+  deadline: string | null;
+  metadata: Record<string, string | number | boolean | null>;
+}
+
+export interface ActionKitPosition {
+  asset: PreStockAsset;
+  holding: Holding;
+  status: PositionState;
+  actions: PositionAction[];
 }
 
 /** Factual transition fields must come from a reviewed lifecycle source. */

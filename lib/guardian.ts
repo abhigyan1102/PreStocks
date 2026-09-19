@@ -1,6 +1,6 @@
-import type { GuardianEvaluation, Holding, LifecycleEvent, PreStockAsset } from "./domain";
+import type { Holding, LifecycleEvent, PositionEvaluation, PreStockAsset } from "./domain";
 
-function stateFor(event: LifecycleEvent, now: Date): GuardianEvaluation["lifecycle"]["state"] {
+function stateFor(event: LifecycleEvent, now: Date): PositionEvaluation["lifecycle"]["state"] {
   if (event.status === "EXPIRED" || (event.deadline && Date.parse(event.deadline) <= now.getTime())) return "EXPIRED";
   if (event.status === "COMPLETED") return "COMPLETED";
   if (event.status === "ACTION_REQUIRED") return "ACTION_REQUIRED";
@@ -36,7 +36,7 @@ export function evaluateHolding(
   holding: Holding,
   events: LifecycleEvent[],
   now = new Date(),
-): GuardianEvaluation {
+): PositionEvaluation {
   if (holding.mint !== asset.mint) throw new Error("Holding mint does not match asset");
   const event = resolveLifecycleEvent(asset, events, now);
   if (!event) {

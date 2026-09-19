@@ -25,7 +25,7 @@ if (process.platform !== "darwin" || !project.startsWith(`${documents}/`)) {
 }
 
 const projectId = createHash("sha256").update(project).digest("hex").slice(0, 12);
-const cache = join(homedir(), "Library", "Caches", "PreStocksGuardian", projectId);
+const cache = join(homedir(), "Library", "Caches", "PreStocksActionKit", projectId);
 const deps = join(cache, "dependencies");
 const lockfile = join(project, "package-lock.json");
 const lockHash = createHash("sha256").update(readFileSync(lockfile)).digest("hex");
