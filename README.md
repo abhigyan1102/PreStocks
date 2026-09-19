@@ -12,7 +12,7 @@ ActionKit combines official asset discovery, exact wallet holdings, normalized p
 - A reviewed [SpaceX product-page notice](https://prestocks.com/spacex) is stored as a sourced lifecycle snapshot. The evaluator selects the relevant event deterministically, prioritizing active required actions over historical notices. ActionKit exposes an official review action and a non-executable migration requirement because no verified destination mint exists.
 - The lifecycle provider declares its acquisition mode and source class. The current provider is a reviewed static snapshot, not a PreStocks corporate-actions API. The lineage model retains event provenance and can describe verified transitions. The production registry currently contains **one** SpaceX notice and no verified destination mint or conversion ratio. Its lineage cannot claim an XAI → SPACEX → SPCXx chain.
 - The deterministic resolution planner separates current action from historical lineage. Announced and completed events are informational, expired events stay historical, issuer flows remain issuer-managed, and swap candidates require independently verified execution evidence for the exact source mint, destination mint, and raw amount.
-- A typed TypeScript SDK and four reusable React components consume the same REST routes. The integration demo at `/demo/integration` shows the change from a balance-only wallet UI to sourced lifecycle actions and includes a read-only mainnet wallet inspector.
+- A typed TypeScript SDK and four reusable React components consume the same REST routes. The developer section at `/#developers` shows the change from a balance-only wallet UI to sourced lifecycle actions and provides React, SDK, and REST integration paths.
 - A Jupiter order adapter and quote validation boundary are present. They only run after a reviewed transition supplies a verified destination mint and `JUPITER_API_KEY` is configured. No such production transition is recorded yet, so **no executable Jupiter route is currently claimed**. The API does not expose an unsigned transaction for signing.
 - The demo wallet and simulation API remain separate and clearly labeled. Demo balances do not establish real ownership.
 
@@ -31,7 +31,7 @@ npm run dev
 
 Open `http://localhost:3000`. The homepage and demo work without RPC configuration. Live wallet routes return a clear configuration error until `SOLANA_RPC_URL` is set; they never silently use devnet. `JUPITER_API_KEY` is optional and is only used if a reviewed transition later supplies an executable candidate pair. Keep both values server-side in `.env.local`; never commit a key.
 
-Open `http://localhost:3000/demo/integration` for the reusable wallet integration proof.
+Open `http://localhost:3000/#developers` for the reusable wallet integration proof. The previous `/demo/integration` URL redirects to this canonical section.
 
 On macOS when the checkout is inside Documents, npm scripts place `node_modules` and generated `.next` output in `~/Library/Caches/PreStocksActionKit/` to avoid cloud eviction during local runs. The dev server listens on `127.0.0.1:3000` and uses Next.js Webpack mode because the dependency symlink is outside the project. Stop `npm run dev` before `npm run build`, as both use the same `.next` output.
 

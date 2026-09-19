@@ -3,6 +3,7 @@ import { demoHoldings } from "@/lib/demo";
 import { evaluateHolding, resolveLifecycleEvent } from "@/lib/guardian";
 import { lifecycleProvider } from "@/lib/lifecycle";
 import { getPreStocks, premiumPercent } from "@/lib/prestocks";
+import { IntegrationProof } from "./IntegrationProof";
 import { Motion } from "./Motion";
 import { WalletLookup } from "./WalletLookup";
 
@@ -154,7 +155,7 @@ export default async function Home() {
       <h2 className="developer-heading" id="developer-title">{["One", "integration.", "Every", "position's", "next", "action."].map((word, index) => <span className="reveal-word" key={`${word}-${index}`}>{word} </span>)}</h2>
       <p>Read official assets, live wallet positions, and sourced actions through one API.</p>
       <div className="developer-actions"><a className="button button-dark" href="#wallet-lookup">Try a wallet <span aria-hidden="true">↗</span></a><a className="button button-outline" href="/api/v1/assets" target="_blank" rel="noopener noreferrer">View asset API <span aria-hidden="true">↗</span></a></div>
-      <div className="code-surface"><code><span>GET</span> /api/v1/wallet/:address/actions</code><pre>{`{\n  "mode": "live",\n  "positions": [{\n    "symbol": "SPACEX",\n    "status": "ACTION_REQUIRED",\n    "actions": [{\n      "type": "MIGRATE",\n      "executable": false\n    }]\n  }]\n}`}</pre></div>
+      <IntegrationProof />
     </section>
     <footer className="site-footer page-gutter"><strong>PreStocks ActionKit</strong><span>Official assets · live holdings · normalized actions · continuity</span></footer>
   </main>;
