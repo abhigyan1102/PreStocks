@@ -158,9 +158,8 @@
   display: grid;
   gap: clamp(64px, 8vw, 130px);
   grid-template-columns: minmax(0, .92fr) minmax(480px, 1.08fr);
-  min-height: 1200px;
-  padding-bottom: 170px;
-  padding-top: 170px;
+  padding-bottom: 150px;
+  padding-top: 150px;
 }
 .integrationLead h2 { font-size: clamp(50px, 5.4vw, 84px); letter-spacing: -.07em; line-height: .96; margin: 0; }
 .integrationLead > p { color: var(--demo-muted); font-size: 18px; line-height: 1.55; margin: 28px 0 38px; max-width: 620px; }
@@ -197,7 +196,6 @@
   .heroCopy { padding-bottom: 10px; }
   .lifecycleArt { margin: 0 auto; max-width: 760px; width: 100%; }
   .integration { grid-template-columns: 1fr; min-height: auto; }
-  .integrationLead { position: static !important; transform: none !important; }
 }
 
 @media (max-width: 820px) {

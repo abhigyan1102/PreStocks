@@ -44,17 +44,6 @@ export function IntegrationDemo() {
       ease: "power3.out",
     });
 
-    const media = gsap.matchMedia();
-    media.add("(min-width: 960px)", () => {
-      ScrollTrigger.create({
-        trigger: "[data-pin-section]",
-        start: "top 104px",
-        end: "bottom bottom-=160",
-        pin: "[data-pin-title]",
-        pinSpacing: false,
-      });
-    });
-
     gsap.timeline({
       scrollTrigger: {
         trigger: "[data-scale-section]",
@@ -66,7 +55,6 @@ export function IntegrationDemo() {
       .fromTo("[data-scale-media]", { scale: 0.82, opacity: 0.25 }, { scale: 1, opacity: 1, duration: 0.48 })
       .to("[data-scale-media]", { scale: 1.04, opacity: 0.28, duration: 0.52 });
 
-    return () => media.revert();
   }, { scope: root });
 
   function inspectWallet(event: React.FormEvent<HTMLFormElement>) {
@@ -77,9 +65,9 @@ export function IntegrationDemo() {
   return (
     <main className={styles.page} ref={root}>
       <header className={styles.header} data-hero-item>
-        <a className={styles.wordmark} href="/"><strong>ActionKit</strong><span>/</span>PreStocks</a>
+        <a className={styles.wordmark} href="/#top"><strong>ActionKit</strong><span>/</span>Developer integration</a>
         <nav aria-label="Integration demo navigation">
-          <a href="/">Overview</a>
+          <a href="/#top">Main product</a>
           <a href="#difference">Why ActionKit</a>
           <a href="#integrate">Developers</a>
           <a href="#inspect">Inspect wallet</a>
@@ -145,8 +133,8 @@ export function IntegrationDemo() {
         </div>
       </section>
 
-      <section className={styles.integration} id="integrate" data-pin-section aria-labelledby="developer-title">
-        <div className={styles.integrationLead} data-pin-title>
+      <section className={styles.integration} id="integrate" aria-labelledby="developer-title">
+        <div className={styles.integrationLead}>
           <h2 id="developer-title">One component.<br />The full position context.</h2>
           <p>The React kit calls the typed SDK. The SDK calls the same backend APIs. Lifecycle decisions stay on the server.</p>
           <div className={styles.codeSurface}>
