@@ -10,7 +10,9 @@ ActionKit combines official asset discovery, exact wallet holdings, normalized p
 - A public-address lookup reads finalized SPL Token and Token-2022 accounts from a configured Solana mainnet RPC, validates parsed data, ignores zero balances and unknown mints, deduplicates accounts, and aggregates same-mint raw amounts using integers. The response marks these positions `mode: "live"`.
 - `GET /api/v1/wallet/:address/actions` is the first ActionKit integration surface. It combines the trusted mint registry, live wallet balances, current market data, and normalized actions with explicit source metadata. An informational action and an executable onchain action are separate states.
 - A reviewed [SpaceX product-page notice](https://prestocks.com/spacex) is stored as a sourced lifecycle snapshot. The evaluator selects the relevant event deterministically, prioritizing active required actions over historical notices. ActionKit exposes an official review action and a non-executable migration requirement because no verified destination mint exists.
-- The lineage model retains event provenance and can describe verified transitions. The production registry currently contains **one** SpaceX notice and no verified destination mint or conversion ratio. Its lineage cannot claim an XAI → SPACEX → SPCXx chain.
+- The lifecycle provider declares its acquisition mode and source class. The current provider is a reviewed static snapshot, not a PreStocks corporate-actions API. The lineage model retains event provenance and can describe verified transitions. The production registry currently contains **one** SpaceX notice and no verified destination mint or conversion ratio. Its lineage cannot claim an XAI → SPACEX → SPCXx chain.
+- The deterministic resolution planner separates current action from historical lineage. Announced and completed events are informational, expired events stay historical, issuer flows remain issuer-managed, and swap candidates require independently verified execution evidence for the exact source mint, destination mint, and raw amount.
+- A typed TypeScript SDK and four reusable React components consume the same REST routes. The integration demo at `/demo/integration` shows the change from a balance-only wallet UI to sourced lifecycle actions and includes a read-only mainnet wallet inspector.
 - A Jupiter order adapter and quote validation boundary are present. They only run after a reviewed transition supplies a verified destination mint and `JUPITER_API_KEY` is configured. No such production transition is recorded yet, so **no executable Jupiter route is currently claimed**. The API does not expose an unsigned transaction for signing.
 - The demo wallet and simulation API remain separate and clearly labeled. Demo balances do not establish real ownership.
 
@@ -28,6 +30,8 @@ npm run dev
 ```
 
 Open `http://localhost:3000`. The homepage and demo work without RPC configuration. Live wallet routes return a clear configuration error until `SOLANA_RPC_URL` is set; they never silently use devnet. `JUPITER_API_KEY` is optional and is only used if a reviewed transition later supplies an executable candidate pair. Keep both values server-side in `.env.local`; never commit a key.
+
+Open `http://localhost:3000/demo/integration` for the reusable wallet integration proof.
 
 On macOS when the checkout is inside Documents, npm scripts place `node_modules` and generated `.next` output in `~/Library/Caches/PreStocksActionKit/` to avoid cloud eviction during local runs. The dev server listens on `127.0.0.1:3000` and uses Next.js Webpack mode because the dependency symlink is outside the project. Stop `npm run dev` before `npm run build`, as both use the same `.next` output.
 
@@ -59,6 +63,46 @@ The quote route accepts the same body. It cannot return `EXECUTABLE` unless the 
 
 Invalid wallet addresses return 400. Missing RPC configuration returns 503, RPC rate limits 429, and RPC failures or malformed account data 502. Live responses use `Cache-Control: no-store`. The RPC provider can observe queried public addresses; choose one whose privacy practices suit the deployment.
 
+## TypeScript SDK
+
+The repository SDK is exported from `sdk/index.ts` and accepts an optional `baseUrl` and `fetch` implementation.
+
+```ts
+import { PreStocksActionKit } from "./sdk";
+
+const kit = new PreStocksActionKit({ baseUrl: "https://your-actionkit-host.example" });
+const assets = await kit.assets.list();
+const positionActions = await kit.wallet.getActions(publicKey);
+```
+
+Available methods:
+
+- `assets.list()` and `assets.get(symbol)`
+- `wallet.getHoldings(wallet)` and `wallet.getActions(wallet)`
+- `lifecycle.getLineage(symbol)`
+- `resolve.plan({ wallet, symbol })`
+
+Failed HTTP responses throw `ActionKitRequestError` with the response status and parsed payload. The SDK does not add client-side lifecycle or execution decisions.
+
+## React components
+
+The reusable components are exported from `components/actionkit/index.ts`:
+
+```tsx
+import { PreStocksActions } from "./components/actionkit";
+
+export function WalletPreStocks({ publicKey }: { publicKey: string }) {
+  return <PreStocksActions wallet={publicKey} />;
+}
+```
+
+- `PreStocksPortfolio` renders official holdings.
+- `PreStocksActions` renders normalized actions and their provenance.
+- `PreStocksPosition` renders one already-loaded action position.
+- `PreStocksContinuity` renders sourced lineage for a symbol.
+
+Loading, empty, error, and populated states are built into the data-fetching components. They call the SDK instead of duplicating server decision logic.
+
 ## Architecture
 
 ```mermaid
@@ -73,7 +117,9 @@ flowchart LR
   D --> I
   I --> J[Action resolver and resolution planner]
   E --> J
-  J --> K[REST API, future SDK and React kit]
+  J --> K[REST API]
+  K --> N[TypeScript SDK]
+  N --> O[React component kit and integration demo]
   J -. verified destination only .-> L[Jupiter order adapter]
   L -. future user review and wallet signature .-> M[Broadcast and rescan]
 ```
@@ -82,7 +128,7 @@ The `LifecycleProvider` keeps source acquisition separate from decision logic. A
 
 ## Remaining proof before a full Continuity flow
 
-1. Configure mainnet RPC and check a known real PreStocks wallet end to end. Unit tests use mocked RPC data and do not prove a live holding.
+1. Check a known real PreStocks-holding mainnet wallet end to end. The RPC integration has been verified against a public mainnet wallet with normal SPL accounts and a zero-PreStocks result; this does not prove a live PreStocks holding.
 2. Reverify event freshness and obtain sourced destination mints, conversion details, and issuer instructions. The current SpaceX snapshot alone cannot establish an executable route.
 3. With a verified pair and Jupiter API key, test a real current quote. A quote is not an executed swap.
 4. Add wallet review and explicit signing, broadcast, confirmation, then a wallet rescan before any position is called `RESOLVED`. No signed transaction has been tested here.
