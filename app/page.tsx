@@ -1,4 +1,4 @@
-import type { GuardianEvaluation, LifecycleEvent, PreStockAsset } from "@/lib/domain";
+import type { LifecycleEvent, PositionEvaluation, PreStockAsset } from "@/lib/domain";
 import { demoHoldings } from "@/lib/demo";
 import { evaluateHolding, resolveLifecycleEvent } from "@/lib/guardian";
 import { lifecycleProvider } from "@/lib/lifecycle";
@@ -54,7 +54,7 @@ export default async function Home() {
   }
   const events = await lifecycleProvider.getEvents();
   const holdings = demoHoldings(assets);
-  const evaluations: GuardianEvaluation[] = holdings.map((holding) => {
+  const evaluations: PositionEvaluation[] = holdings.map((holding) => {
     const asset = assets.find((candidate) => candidate.mint === holding.mint);
     if (!asset) throw new Error("Demo holding does not map to an official asset");
     return evaluateHolding(asset, holding, events);
@@ -68,23 +68,23 @@ export default async function Home() {
   return <main className="site-shell">
     <Motion />
     <header className="site-header page-gutter">
-      <a className="wordmark" href="#top"><strong>continuity</strong><span>/</span>PreStocks</a>
+      <a className="wordmark" href="#top"><strong>ActionKit</strong><span>/</span>PreStocks</a>
       <nav aria-label="Main navigation">
         <a href="#top">Overview</a>
-        <a href="#wallet-lookup">Portfolio</a>
-        <a href="#action-center">Continuity</a>
-        <a href="#assets">Assets</a>
+        <a href="#wallet-lookup">Positions</a>
+        <a href="#action-center">Actions</a>
+        <a href="#assets">Continuity</a>
         <a href="#developers">Developers</a>
       </nav>
     </header>
 
     <section className="hero page-gutter" id="top" aria-labelledby="hero-title">
       <div className="hero-copy">
-        <h1 id="hero-title">When the company changes, your onchain position changes with it.</h1>
-        <p>Corporate events become actionable onchain transitions. Continuity connects reviewed lifecycle events to the PreStocks positions a wallet holds.</p>
+        <h1 id="hero-title">Make any Solana app PreStocks-native.</h1>
+        <p>Asset discovery, wallet holdings, position actions, and lifecycle transitions through one integration.</p>
         <div className="hero-actions">
-          <a className="button button-dark" href="#wallet-lookup">Check wallet <span aria-hidden="true">↗</span></a>
-          <a className="button button-outline" href="#action-center">Explore demo <span aria-hidden="true">↗</span></a>
+          <a className="button button-dark" href="#wallet-lookup">Try ActionKit <span aria-hidden="true">↗</span></a>
+          <a className="button button-outline" href="#developers">Developer quickstart <span aria-hidden="true">↗</span></a>
         </div>
       </div>
       <div className="hero-art" aria-hidden="true">
@@ -98,7 +98,7 @@ export default async function Home() {
     <WalletLookup />
 
     <section className="action-section page-gutter" id="action-center" aria-labelledby="action-title">
-      <div className="section-head"><span>Position continuity</span><span>Demo environment</span></div>
+      <div className="section-head"><span>Continuity module</span><span>Demo environment</span></div>
       <h2 id="action-title">{action ? "One position has a next step." : "Understand a position's next step."}</h2>
       <div className="demo-intro"><strong>Demo wallet</strong><p>Illustrative token balances. Asset data comes from the official API; events come from a reviewed source snapshot.</p></div>
       {assetError ? <div className="load-error" role="status">Official PreStocks asset data is unavailable. The demo will return when the source is reachable.</div> :
@@ -117,7 +117,7 @@ export default async function Home() {
                 <a className="button button-rust" href={action.actions[0]?.url} target="_blank" rel="noopener noreferrer">Read PreStocks instructions <span aria-hidden="true">↗</span></a>
                 <p className="source-note">Source: <a href={action.lifecycle.event?.sourceUrl} target="_blank" rel="noopener noreferrer">{action.lifecycle.event?.sourceName}</a> · reviewed {action.lifecycle.event?.verifiedAt ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(action.lifecycle.event.verifiedAt)) : "date unavailable"}</p>
               </div>
-              <p className="action-explainer">PreStocks states that SpaceX tokens must be swapped before the deadline. Read its official instructions for options, eligibility, and current details. Continuity does not execute transactions.</p>
+              <p className="action-explainer">PreStocks states that SpaceX tokens must be swapped before the deadline. ActionKit normalizes the next step but does not claim an executable route without verified destination and live route data.</p>
             </div>
           </div>
           <aside className="other-holdings"><h3>Other demo holdings</h3>{normal.map((item) => <div key={item.asset.mint} className="other-row"><strong>{item.asset.name.replace(" PreStocks", "")}</strong><span>No recorded event</span></div>)}</aside>
@@ -151,11 +151,11 @@ export default async function Home() {
 
     <section className="developer-section page-gutter" id="developers" aria-labelledby="developer-title">
       <div className="section-head"><span>For developers</span><span>Read-only API</span></div>
-      <h2 className="developer-heading" id="developer-title">{["Connect", "a", "position", "to", "its", "next", "verified", "step."].map((word, index) => <span className="reveal-word" key={`${word}-${index}`}>{word} </span>)}</h2>
-      <p>Read real wallet positions and sourced lifecycle context through the API.</p>
-      <div className="developer-actions"><a className="button button-dark" href="/api/v1/events/SPACEX" target="_blank" rel="noopener noreferrer">View API response <span aria-hidden="true">↗</span></a><a className="button button-outline" href="#action-center">Explore demo <span aria-hidden="true">↗</span></a></div>
-      <div className="code-surface"><code><span>GET</span> /api/v1/events/SPACEX</code><pre>{`{\n  "provenance": "reviewed static source snapshot",\n  "events": [{\n    "type": "IPO",\n    "deadline": "2027-03-12T23:59:00Z",\n    "sourceUrl": "https://prestocks.com/spacex"\n  }]\n}`}</pre></div>
+      <h2 className="developer-heading" id="developer-title">{["One", "integration.", "Every", "position's", "next", "action."].map((word, index) => <span className="reveal-word" key={`${word}-${index}`}>{word} </span>)}</h2>
+      <p>Read official assets, live wallet positions, and sourced actions through one API.</p>
+      <div className="developer-actions"><a className="button button-dark" href="#wallet-lookup">Try a wallet <span aria-hidden="true">↗</span></a><a className="button button-outline" href="/api/v1/assets" target="_blank" rel="noopener noreferrer">View asset API <span aria-hidden="true">↗</span></a></div>
+      <div className="code-surface"><code><span>GET</span> /api/v1/wallet/:address/actions</code><pre>{`{\n  "mode": "live",\n  "positions": [{\n    "symbol": "SPACEX",\n    "status": "ACTION_REQUIRED",\n    "actions": [{\n      "type": "MIGRATE",\n      "executable": false\n    }]\n  }]\n}`}</pre></div>
     </section>
-    <footer className="site-footer page-gutter"><strong>PreStocks Continuity</strong><span>Official assets · reviewed lifecycle source · user-controlled actions</span></footer>
+    <footer className="site-footer page-gutter"><strong>PreStocks ActionKit</strong><span>Official assets · live holdings · normalized actions · continuity</span></footer>
   </main>;
 }

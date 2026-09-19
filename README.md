@@ -1,14 +1,15 @@
-# PreStocks Continuity
+# PreStocks ActionKit
 
-PreStocks Continuity turns private-company lifecycle events into wallet-aware, verifiable Solana actions. **When the company changes, your onchain position changes with it.**
+Make any Solana wallet or application PreStocks-native.
 
-Tokenized private-company positions do not remain static when the underlying company is acquired, merges, or goes public. Continuity connects reviewed lifecycle events to actual wallet holdings and determines the next supported step. An event source establishes **what changed**. An execution router separately establishes **whether an onchain route exists now**. Neither fact implies the other.
+ActionKit combines official asset discovery, exact wallet holdings, normalized position actions, and lifecycle continuity through one integration. Continuity is its differentiated lifecycle module: it connects reviewed corporate events to real wallet positions and determines the next supported step. An event source establishes **what changed**. An execution router separately establishes **whether an onchain route exists now**. Neither fact implies the other.
 
 ## What works today
 
 - The [official PreStocks API](https://prestocks.com/api/prestocks) supplies asset identity and `contract_address` values. These exact mint addresses are the trusted registry; token symbols and metadata are never used to identify holdings. The server revalidates asset data every 60 seconds.
 - A public-address lookup reads finalized SPL Token and Token-2022 accounts from a configured Solana mainnet RPC, validates parsed data, ignores zero balances and unknown mints, deduplicates accounts, and aggregates same-mint raw amounts using integers. The response marks these positions `mode: "live"`.
-- A reviewed [SpaceX product-page notice](https://prestocks.com/spacex) is stored as a sourced lifecycle snapshot. The evaluator selects the relevant event deterministically, prioritizing active required actions over historical notices. The planner currently points SpaceX holders to the official instructions.
+- `GET /api/v1/wallet/:address/actions` is the first ActionKit integration surface. It combines the trusted mint registry, live wallet balances, current market data, and normalized actions with explicit source metadata. An informational action and an executable onchain action are separate states.
+- A reviewed [SpaceX product-page notice](https://prestocks.com/spacex) is stored as a sourced lifecycle snapshot. The evaluator selects the relevant event deterministically, prioritizing active required actions over historical notices. ActionKit exposes an official review action and a non-executable migration requirement because no verified destination mint exists.
 - The lineage model retains event provenance and can describe verified transitions. The production registry currently contains **one** SpaceX notice and no verified destination mint or conversion ratio. Its lineage cannot claim an XAI → SPACEX → SPCXx chain.
 - A Jupiter order adapter and quote validation boundary are present. They only run after a reviewed transition supplies a verified destination mint and `JUPITER_API_KEY` is configured. No such production transition is recorded yet, so **no executable Jupiter route is currently claimed**. The API does not expose an unsigned transaction for signing.
 - The demo wallet and simulation API remain separate and clearly labeled. Demo balances do not establish real ownership.
@@ -28,7 +29,7 @@ npm run dev
 
 Open `http://localhost:3000`. The homepage and demo work without RPC configuration. Live wallet routes return a clear configuration error until `SOLANA_RPC_URL` is set; they never silently use devnet. `JUPITER_API_KEY` is optional and is only used if a reviewed transition later supplies an executable candidate pair. Keep both values server-side in `.env.local`; never commit a key.
 
-On macOS when the checkout is inside Documents, npm scripts place `node_modules` and generated `.next` output in `~/Library/Caches/PreStocksGuardian/` to avoid cloud eviction during local runs. The dev server listens on `127.0.0.1:3000` and uses Next.js Webpack mode because the dependency symlink is outside the project. Stop `npm run dev` before `npm run build`, as both use the same `.next` output.
+On macOS when the checkout is inside Documents, npm scripts place `node_modules` and generated `.next` output in `~/Library/Caches/PreStocksActionKit/` to avoid cloud eviction during local runs. The dev server listens on `127.0.0.1:3000` and uses Next.js Webpack mode because the dependency symlink is outside the project. Stop `npm run dev` before `npm run build`, as both use the same `.next` output.
 
 ```bash
 npm test
@@ -45,11 +46,12 @@ npm audit --omit=dev
 | `GET /api/v1/events` | Reviewed lifecycle snapshots with provenance |
 | `GET /api/v1/events/:symbol` | Reviewed events for a symbol |
 | `GET /api/v1/lineage/:symbol` | Sourced transitions; historical entries explicitly marked |
+| `GET /api/v1/wallet/:address/prestocks` | Live official PreStocks holdings with exact balances |
+| `GET /api/v1/wallet/:address/actions` | Flagship ActionKit response with holdings, market data, and normalized sourced actions |
 | `GET /api/v1/wallet/:address/continuity` | Live wallet positions and lifecycle states |
 | `POST /api/v1/resolve/plan` | Wallet-specific, derived next-step plan |
 | `POST /api/v1/resolve/quote` | Jupiter route check only for a verified source/destination pair |
 | `POST /api/v1/evaluate` | Explicitly simulated balance evaluation |
-| `GET /api/v1/wallet/:address/actions` | Earlier Guardian response, retained for compatibility |
 
 The live continuity response includes `positions` with exact `rawBalance` strings, `decimals`, fixed-decimal `uiBalance` strings, `lifecycleState`, evaluations, and counts. Empty wallets return empty positions and zero counts. The plan route accepts `{"wallet":"<public address>","symbol":"SPACEX"}`. Its present SpaceX result is `MANUAL_ACTION_REQUIRED`: the notice is sourced, but no destination mint or onchain route is verified. `NO_ACTION_REQUIRED` means no action is recorded in the reviewed provider; it is **not** proof that no real-world event exists. `RESOLVED` must not be inferred from a completed notice; it requires future wallet-level proof.
 
@@ -67,11 +69,11 @@ flowchart LR
   F[Public Solana wallet] --> G[Holding scanner]
   H[Finalized Solana RPC] --> G
   B --> G
-  G --> I[Continuity evaluator]
+  G --> I[ActionKit holdings resolver]
   D --> I
-  I --> J[Resolution planner]
+  I --> J[Action resolver and resolution planner]
   E --> J
-  J --> K[Live wallet UI and API]
+  J --> K[REST API, future SDK and React kit]
   J -. verified destination only .-> L[Jupiter order adapter]
   L -. future user review and wallet signature .-> M[Broadcast and rescan]
 ```

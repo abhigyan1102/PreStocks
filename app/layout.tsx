@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PreStocks Continuity | Wallet-aware lifecycle actions",
-  description: "When the company changes, your onchain position changes with it. Sourced PreStocks lifecycle context for real wallet holdings.",
+  title: "PreStocks ActionKit | Make Solana apps PreStocks-native",
+  description: "Official PreStocks assets, wallet holdings, position actions, and lifecycle transitions through one integration.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
