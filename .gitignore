@@ -11,3 +11,18 @@ next-env.d.ts
 # Local agent tooling and generated skills
 .agents/
 skills-lock.json
+
+# InsForge & AI agent skills
+.insforge
+.agent
+.agents
+.augment
+.claude
+.cline
+.github/copilot*
+.kilocode
+.qoder
+.qwen
+.roo
+.trae
+.windsurf
