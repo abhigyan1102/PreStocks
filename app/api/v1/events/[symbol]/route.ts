@@ -7,5 +7,5 @@ export async function GET(_request: Request, context: { params: Promise<{ symbol
     return NextResponse.json({ error: "Invalid asset symbol" }, { status: 400 });
   }
   const events = await lifecycleProvider.getEventsForAsset(symbol);
-  return NextResponse.json({ provenance: "reviewed static source snapshot", events });
+  return NextResponse.json({ provider: lifecycleProvider.info, provenance: "reviewed static source snapshot", events });
 }

@@ -14,7 +14,8 @@ const event: LifecycleEvent = {
   id: "sourced-ipo", assetSymbol: "SPACEX", assetMint: mint, type: "IPO", status: "ACTION_REQUIRED",
   announcedAt: null, effectiveAt: null, deadline: "2027-03-12T23:59:00Z", actionLabel: "Read instructions",
   actionUrl: "https://prestocks.com/spacex", sourceUrl: "https://prestocks.com/spacex", sourceName: "PreStocks",
-  verifiedAt: "2026-09-17T00:00:00Z", notes: "",
+  sourceType: "PRESTOCKS_OFFICIAL_PAGE", verifiedAt: "2026-09-17T00:00:00Z",
+  destinationAssetSymbol: null, destinationAssetMint: null, conversionRatio: null, executionMode: "UNKNOWN", notes: "",
 };
 const now = new Date("2026-09-18T00:00:00Z");
 const unknown = transitionFromEvent(event);
@@ -45,6 +46,36 @@ test("expired event is historical and cannot be executable", () => {
 test("a verified destination can be marked for route check but not executable yet", () => {
   const linked: LifecycleTransition = { ...unknown, executionMode: "SWAP", destinationAssetSymbol: "DEST", destinationAssetMint: destination };
   assert.equal(createResolutionPlan(asset, holding, [event], [linked], now).status, "ROUTE_CHECK_REQUIRED");
+});
+
+test("announced and completed events are information only", () => {
+  const announced = { ...event, status: "ANNOUNCED" as const };
+  const completed = { ...event, status: "COMPLETED" as const, deadline: "2026-01-01T00:00:00Z" };
+  assert.equal(createResolutionPlan(asset, holding, [announced], [transitionFromEvent(announced)], now).status, "INFORMATION_ONLY");
+  const historical = createResolutionPlan(asset, holding, [completed], [transitionFromEvent(completed)], now);
+  assert.equal(historical.status, "INFORMATION_ONLY");
+  assert.equal(historical.historical, true);
+});
+
+test("issuer-managed transition produces issuer flow rather than execution", () => {
+  const linked: LifecycleTransition = { ...unknown, executionMode: "ISSUER_MIGRATION" };
+  const plan = createResolutionPlan(asset, holding, [event], [linked], now);
+  assert.equal(plan.status, "ISSUER_FLOW_REQUIRED");
+  assert.equal(plan.recommendedAction, "FOLLOW_ISSUER_FLOW");
+  assert.equal(plan.execution.checked, false);
+});
+
+test("matching execution evidence can distinguish executable from no route", () => {
+  const linked: LifecycleTransition = { ...unknown, executionMode: "SWAP", destinationAssetSymbol: "DEST", destinationAssetMint: destination };
+  const base = { checked: true as const, provider: "TestRouter", verifiedAt: now.toISOString(), sourceMint: mint, destinationMint: destination, inputRawAmount: holding.rawBalance };
+  assert.equal(createResolutionPlan(asset, holding, [event], [linked], now, { ...base, executable: true }).status, "EXECUTABLE");
+  assert.equal(createResolutionPlan(asset, holding, [event], [linked], now, { ...base, executable: false }).status, "NO_EXECUTABLE_ROUTE");
+});
+
+test("execution evidence for a different amount or mint is rejected", () => {
+  const linked: LifecycleTransition = { ...unknown, executionMode: "SWAP", destinationAssetSymbol: "DEST", destinationAssetMint: destination };
+  const wrong = { checked: true as const, executable: true, provider: "TestRouter", verifiedAt: now.toISOString(), sourceMint: mint, destinationMint: destination, inputRawAmount: "1" };
+  assert.throws(() => createResolutionPlan(asset, holding, [event], [linked], now, wrong), /does not match/);
 });
 
 test("a mismatched source mint cannot trigger a transition", () => {

@@ -41,7 +41,12 @@ const event: LifecycleEvent = {
   actionUrl: "https://prestocks.com/spacex",
   sourceUrl: "https://prestocks.com/spacex",
   sourceName: "PreStocks SpaceX page",
+  sourceType: "PRESTOCKS_OFFICIAL_PAGE",
   verifiedAt: "2026-09-17T00:00:00Z",
+  destinationAssetSymbol: null,
+  destinationAssetMint: null,
+  conversionRatio: null,
+  executionMode: "UNKNOWN",
   notes: "",
 };
 const now = new Date("2026-09-19T00:00:00Z");

@@ -39,7 +39,12 @@ export interface LifecycleEvent {
   actionUrl: string;
   sourceUrl: string;
   sourceName: string;
+  sourceType: SourceClass;
   verifiedAt: string;
+  destinationAssetSymbol: string | null;
+  destinationAssetMint: string | null;
+  conversionRatio: string | null;
+  executionMode: "SWAP" | "ISSUER_MIGRATION" | "MANUAL" | "UNKNOWN";
   notes: string;
 }
 
@@ -145,6 +150,7 @@ export interface LifecycleTransition {
   instructionsUrl: string;
   sourceUrl: string;
   sourceName: string;
+  sourceType: SourceClass;
   verifiedAt: string;
   executionMode: "SWAP" | "ISSUER_MIGRATION" | "MANUAL" | "UNKNOWN";
 }
@@ -153,20 +159,25 @@ export interface PositionLineage {
   origin: string;
   transitions: Array<LifecycleTransition & { historical: boolean }>;
   provenance: "reviewed lifecycle source";
+  mode: "informational";
+  currentActionDeterminedSeparately: true;
 }
 
 export type ResolutionStatus =
   | "NO_ACTION_REQUIRED"
+  | "INFORMATION_ONLY"
+  | "ACTION_REQUIRED"
   | "MANUAL_ACTION_REQUIRED"
   | "ROUTE_CHECK_REQUIRED"
   | "EXECUTABLE"
+  | "ISSUER_FLOW_REQUIRED"
   | "NO_EXECUTABLE_ROUTE"
   | "EXPIRED"
   | "RESOLVED";
 
 export interface ResolutionPlan {
   status: ResolutionStatus;
-  recommendedAction: "NONE" | "REVIEW_OFFICIAL_INSTRUCTIONS" | "CHECK_ROUTE";
+  recommendedAction: "NONE" | "REVIEW_EVENT" | "REVIEW_OFFICIAL_INSTRUCTIONS" | "FOLLOW_ISSUER_FLOW" | "CHECK_ROUTE" | "REVIEW_TRANSACTION";
   sourceMint: string;
   targetSymbol: string | null;
   targetMint: string | null;
@@ -177,4 +188,11 @@ export interface ResolutionPlan {
   eventSourceUrl: string | null;
   sourceEventId: string | null;
   factType: "verified_source_and_derived_plan";
+  reason: string;
+  historical: boolean;
+  execution: {
+    checked: boolean;
+    provider: string | null;
+    verifiedAt: string | null;
+  };
 }

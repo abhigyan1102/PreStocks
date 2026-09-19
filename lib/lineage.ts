@@ -1,6 +1,6 @@
 import type { LifecycleEvent, LifecycleTransition, PositionLineage } from "./domain";
 
-/** Preserve the verified event, leaving unknown transformation facts null. */
+/** Preserve only facts carried by the verified event. Unknown transformation facts remain null. */
 export function transitionFromEvent(event: LifecycleEvent): LifecycleTransition {
   return {
     id: `transition:${event.id}`,
@@ -9,16 +9,17 @@ export function transitionFromEvent(event: LifecycleEvent): LifecycleTransition 
     sourceAssetMint: event.assetMint,
     eventType: event.type,
     status: event.status,
-    destinationAssetSymbol: null,
-    destinationAssetMint: null,
-    conversionRatio: null,
+    destinationAssetSymbol: event.destinationAssetSymbol,
+    destinationAssetMint: event.destinationAssetMint,
+    conversionRatio: event.conversionRatio,
     deadline: event.deadline,
     effectiveAt: event.effectiveAt,
     instructionsUrl: event.actionUrl,
     sourceUrl: event.sourceUrl,
     sourceName: event.sourceName,
+    sourceType: event.sourceType,
     verifiedAt: event.verifiedAt,
-    executionMode: "UNKNOWN",
+    executionMode: event.executionMode,
   };
 }
 
@@ -47,5 +48,11 @@ export function getPositionLineage(
     result.push(...fromCurrent.map((item) => ({ ...item, historical: historical(item, now) })));
     symbol = fromCurrent.at(-1)?.destinationAssetSymbol ?? null;
   }
-  return { origin: origin.toUpperCase(), transitions: result, provenance: "reviewed lifecycle source" };
+  return {
+    origin: origin.toUpperCase(),
+    transitions: result,
+    provenance: "reviewed lifecycle source",
+    mode: "informational",
+    currentActionDeterminedSeparately: true,
+  };
 }

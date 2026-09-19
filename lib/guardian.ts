@@ -1,14 +1,31 @@
 import type { Holding, LifecycleEvent, PositionEvaluation, PreStockAsset } from "./domain";
 
-function stateFor(event: LifecycleEvent, now: Date): PositionEvaluation["lifecycle"]["state"] {
-  if (event.status === "EXPIRED" || (event.deadline && Date.parse(event.deadline) <= now.getTime())) return "EXPIRED";
+export function lifecycleStateForEvent(event: LifecycleEvent, now: Date): PositionEvaluation["lifecycle"]["state"] {
   if (event.status === "COMPLETED") return "COMPLETED";
+  if (event.status === "EXPIRED" || (event.deadline && Date.parse(event.deadline) <= now.getTime())) return "EXPIRED";
   if (event.status === "ACTION_REQUIRED") return "ACTION_REQUIRED";
   if (event.status === "IN_PROGRESS") return "MIGRATING";
   return "WATCH";
 }
 
-const PRIORITY = { ACTION_REQUIRED: 5, MIGRATING: 4, WATCH: 3, EXPIRED: 2, COMPLETED: 1, ACTIVE: 0 } as const;
+const CURRENT_PRIORITY = { ACTION_REQUIRED: 3, MIGRATING: 2, WATCH: 1, EXPIRED: 0, COMPLETED: 0, ACTIVE: 0 } as const;
+
+function relevantTime(event: LifecycleEvent): number {
+  return Date.parse(event.deadline ?? event.effectiveAt ?? event.announcedAt ?? event.verifiedAt);
+}
+
+export function compareLifecycleEvents(a: LifecycleEvent, b: LifecycleEvent, now: Date): number {
+  const aState = lifecycleStateForEvent(a, now);
+  const bState = lifecycleStateForEvent(b, now);
+  const priorityDelta = CURRENT_PRIORITY[bState] - CURRENT_PRIORITY[aState];
+  if (priorityDelta) return priorityDelta;
+  const timeDelta = CURRENT_PRIORITY[aState] === 0
+    ? relevantTime(b) - relevantTime(a)
+    : relevantTime(a) - relevantTime(b);
+  if (timeDelta) return timeDelta;
+  const statusDelta = a.status.localeCompare(b.status);
+  return statusDelta || a.id.localeCompare(b.id);
+}
 
 /** Active notices win over history. Within a state, the nearest action date wins. */
 export function resolveLifecycleEvent(
@@ -17,17 +34,7 @@ export function resolveLifecycleEvent(
   now = new Date(),
 ): LifecycleEvent | null {
   const matching = events.filter((event) => event.assetSymbol === asset.symbol && event.assetMint === asset.mint);
-  matching.sort((a, b) => {
-    const aState = stateFor(a, now);
-    const bState = stateFor(b, now);
-    if (aState !== bState) return PRIORITY[bState] - PRIORITY[aState];
-    const date = (event: LifecycleEvent) => Date.parse(event.deadline ?? event.effectiveAt ?? event.announcedAt ?? event.verifiedAt);
-    const aDate = date(a);
-    const bDate = date(b);
-    // For current events choose the nearest deadline/effective date; for history choose the latest.
-    if (aDate !== bDate) return aState === "EXPIRED" || aState === "COMPLETED" ? bDate - aDate : aDate - bDate;
-    return a.id.localeCompare(b.id);
-  });
+  matching.sort((a, b) => compareLifecycleEvents(a, b, now));
   return matching[0] ?? null;
 }
 
@@ -42,7 +49,7 @@ export function evaluateHolding(
   if (!event) {
     return { asset, holding, lifecycle: { state: "ACTIVE", event: null }, actions: [], severity: "none" };
   }
-  const state = stateFor(event, now);
+  const state = lifecycleStateForEvent(event, now);
   if (state === "EXPIRED") {
     return { asset, holding, lifecycle: { state: "EXPIRED", event }, actions: [], severity: "critical" };
   }

@@ -17,7 +17,8 @@ const event: LifecycleEvent = {
   id: "space-event", assetSymbol: "SPACEX", assetMint: asset.mint, type: "IPO", status: "ACTION_REQUIRED",
   announcedAt: null, effectiveAt: null, deadline: "2027-03-12T23:59:00Z", actionLabel: "Read source",
   actionUrl: "https://prestocks.com/spacex", sourceUrl: "https://prestocks.com/spacex",
-  sourceName: "PreStocks", verifiedAt: "2026-09-17T19:15:31Z", notes: "",
+  sourceName: "PreStocks", sourceType: "PRESTOCKS_OFFICIAL_PAGE", verifiedAt: "2026-09-17T19:15:31Z",
+  destinationAssetSymbol: null, destinationAssetMint: null, conversionRatio: null, executionMode: "UNKNOWN", notes: "",
 };
 
 test("sourced event requires action before its deadline", () => {
@@ -72,4 +73,27 @@ test("nearest action deadline wins among equal-priority events", () => {
 test("unrelated symbol cannot trigger an action", () => {
   const result = evaluateHolding(asset, holding, [{ ...event, assetSymbol: "OPENAI" }]);
   assert.equal(result.lifecycle.state, "ACTIVE");
+});
+
+test("all input permutations select the same current lifecycle event", () => {
+  const events: LifecycleEvent[] = [
+    { ...event, id: "completed-newer", status: "COMPLETED", deadline: "2026-06-01T00:00:00Z" },
+    { ...event, id: "expired", status: "EXPIRED", deadline: "2026-05-01T00:00:00Z" },
+    { ...event, id: "announced", status: "ANNOUNCED", deadline: "2027-01-01T00:00:00Z" },
+    { ...event, id: "required", status: "ACTION_REQUIRED", deadline: "2027-03-12T23:59:00Z" },
+  ];
+  const permutations = <T,>(items: T[]): T[][] => items.length <= 1
+    ? [items]
+    : items.flatMap((item, index) => permutations(items.filter((_, candidate) => candidate !== index)).map((rest) => [item, ...rest]));
+  const results = permutations(events).map((items) => evaluateHolding(asset, holding, items, new Date("2026-09-19T00:00:00Z")));
+  assert.ok(results.every((result) => result.lifecycle.event?.id === "required"));
+  assert.ok(results.every((result) => result.lifecycle.state === "ACTION_REQUIRED"));
+});
+
+test("latest historical event wins when no current event exists", () => {
+  const olderExpired: LifecycleEvent = { ...event, id: "older-expired", status: "EXPIRED", deadline: "2025-01-01T00:00:00Z" };
+  const newerCompleted: LifecycleEvent = { ...event, id: "newer-completed", status: "COMPLETED", deadline: "2026-01-01T00:00:00Z" };
+  const result = evaluateHolding(asset, holding, [olderExpired, newerCompleted], new Date("2026-09-19T00:00:00Z"));
+  assert.equal(result.lifecycle.event?.id, "newer-completed");
+  assert.equal(result.lifecycle.state, "COMPLETED");
 });
