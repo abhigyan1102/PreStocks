@@ -1,16 +1,34 @@
 # PreStocks ActionKit
 
-Make any Solana wallet or application PreStocks-native.
+**A read-only integration that adds official PreStocks asset identity, live wallet holdings, normalized position actions, and sourced lifecycle context to a Solana application.**
 
-ActionKit combines official asset discovery, exact wallet holdings, normalized position actions, and lifecycle continuity through one integration. Continuity is its differentiated lifecycle module: it connects reviewed corporate events to real wallet positions and determines the next supported step. An event source establishes **what changed**. An execution router separately establishes **whether an onchain route exists now**. Neither fact implies the other.
+[Live demo](https://6764jzr4.insforge.site) · [Developer integration](https://6764jzr4.insforge.site/#developers) · [GitHub repository](https://github.com/abhigyan1102/PreStocks)
 
-## Live deployment
+Generic Solana wallets can show that a token exists, but they do not know whether it is an official PreStocks asset, whether a lifecycle event affects it, or what the holder should review next. ActionKit combines the official mint registry, finalized Solana mainnet balances, reviewed lifecycle sources, and deterministic server-side decisions behind REST, TypeScript SDK, and React interfaces.
 
-**Production:** [https://6764jzr4.insforge.site](https://6764jzr4.insforge.site)
+## Judge quickstart
 
-The canonical product and judge experience is `/`. The integration proof, before/after comparison, and React, SDK, and REST examples are at [`/#developers`](https://6764jzr4.insforge.site/#developers). The former `/demo/integration` path permanently redirects to that section.
+1. Open the [production homepage](https://6764jzr4.insforge.site).
+2. Paste the public mainnet example `6GJbPKBtovsrMEEMcic5KMi5tswh9qSyT5ZYLMqEwNgt` into **Check your public wallet**.
+3. Confirm five official PreStocks positions, open **SpaceX**, and select **See next step**.
+4. Observe `ACTION_REQUIRED` and the fail-closed `MANUAL_ACTION_REQUIRED` plan: the source notice is reviewed, while the destination mint and executable route remain unverified.
+5. Open [Developer integration](https://6764jzr4.insforge.site/#developers) for the generic-wallet before state, one-component integration, PreStocks-aware after state, and React, SDK, and REST examples.
 
-The application is deployed through the linked InsForge project using its Vercel hosting provider. Production has one required server-side environment variable, `SOLANA_RPC_URL`. `JUPITER_API_KEY` is intentionally absent because no reviewed transition currently has a verified destination mint. No secret is exposed to the browser or stored in this repository.
+The canonical experience is `/`. The former `/demo/integration` path permanently redirects to `/#developers`.
+
+## Production proof
+
+| Classification | Evidence | Current result |
+| --- | --- | --- |
+| **LIVE** | Production deployment | [6764jzr4.insforge.site](https://6764jzr4.insforge.site) |
+| **LIVE** | Public mainnet holder | 17 token accounts; five exact-mint PreStocks positions |
+| **LIVE** | SpaceX position | `ACTION_REQUIRED` |
+| **REVIEWED SOURCE** | PreStocks SpaceX product-page notice | Stored with source URL and review timestamp |
+| **LIVE + DERIVED** | Wallet-specific resolution plan | `MANUAL_ACTION_REQUIRED` |
+| **SYNTHETIC TEST** | Demo balances and multi-step lineage fixtures | Used only for deterministic UI and test coverage |
+| **UNVERIFIED** | Destination mint, conversion ratio, executable route | Not claimed and left unavailable |
+
+The holder is a public onchain example. This project does not identify its owner or claim control of it. The application is deployed through the linked InsForge project using its Vercel hosting provider. Production has one required server-side environment variable, `SOLANA_RPC_URL`. `JUPITER_API_KEY` is intentionally absent because no reviewed transition currently has a verified destination mint. No secret is exposed to the browser or stored in this repository.
 
 Quick production checks:
 
@@ -145,6 +163,14 @@ flowchart LR
 
 The `LifecycleProvider` keeps source acquisition separate from decision logic. A future official corporate-action feed can replace the static snapshot without replacing the evaluator. Every transition carries its source URL, name, and verification time. Unknown destinations, ratios, and execution modes remain `null` or `UNKNOWN`; expired events remain historical and cannot become active actions through input ordering.
 
+## Source and provenance model
+
+- **LIVE** data is fetched at request time from the official PreStocks asset API or finalized Solana mainnet RPC.
+- **REVIEWED SOURCE** data is a versioned lifecycle snapshot with its source URL, source name, and review timestamp. It is not presented as a live corporate-actions feed.
+- **DERIVED** states are deterministic ActionKit evaluations built from a live position and reviewed source facts.
+- **SYNTHETIC TEST** data is limited to labeled demo balances and automated fixtures. It is never presented as wallet ownership.
+- **UNVERIFIED** facts remain `null`, `UNKNOWN`, or unavailable. They cannot produce an executable action.
+
 ## Production verification
 
 Verified on 20 September 2026 against Solana mainnet through the configured production RPC:
@@ -157,6 +183,19 @@ Verified on 20 September 2026 against Solana mainnet through the configured prod
 - The homepage was checked at 1440 × 900 and 390 × 844 with no horizontal document overflow or browser console errors.
 
 The holder example was discovered from public mint-filtered token-account data. It proves that the production scanner recognizes live onchain holdings; it does not identify the wallet owner or prove that anyone participating in this project controls that wallet.
+
+## Testing
+
+The release gate covers 60 deterministic tests for exact-mint matching, SPL Token and Token-2022 scanning, integer balance aggregation, lifecycle selection, provenance validation, resolution planning, execution evidence, SDK behavior, and React states. The current production-ready revision passes:
+
+```bash
+npm test
+npm run typecheck
+npm run build
+npm audit --omit=dev
+```
+
+Production is also checked at 1440 × 900 and 390 × 844 for the public-holder flow, developer tabs, copy behavior, anchors, external sources, console errors, and horizontal overflow.
 
 ## Remaining proof before a full Continuity flow
 
