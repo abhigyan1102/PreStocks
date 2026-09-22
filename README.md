@@ -1,192 +1,73 @@
-# PreStocks ActionKit
+# PreStocks Radar
 
-**A read-only integration that adds official PreStocks asset identity, live wallet holdings, normalized position actions, and sourced lifecycle context to a Solana application.**
+**Which private company should PreStocks tokenize next?** PreStocks Radar is a wallet-verified community demand board. A Solana wallet signs a one-time message, receives exactly 100 equal signal points, allocates them among curated company candidates, and publishes one short reason. The public board shows real aggregate demand and a holder/community split. This is research, not governance or a listing commitment.
 
-[Live demo](https://6764jzr4.insforge.site) · [Developer integration](https://6764jzr4.insforge.site/#developers) · [GitHub repository](https://github.com/abhigyan1102/PreStocks)
+[Live product](https://6764jzr4.insforge.site) · [Source repository](https://github.com/abhigyan1102/PreStocks)
 
-Generic Solana wallets can show that a token exists, but they do not know whether it is an official PreStocks asset, whether a lifecycle event affects it, or what the holder should review next. ActionKit combines the official mint registry, finalized Solana mainnet balances, reviewed lifecycle sources, and deterministic server-side decisions behind REST, TypeScript SDK, and React interfaces.
+## Product flow
 
-## Judge quickstart
+1. Anyone can view the public demand board without a wallet.
+2. A compatible Solana wallet connects and signs an expiring challenge. The server checks the Ed25519 signature against the wallet address, consumes the nonce, and sets an HTTP-only session cookie. No transaction, private key, or seed phrase is requested.
+3. The existing official PreStocks API and Solana scanner check current exact-mint holdings across SPL Token and Token-2022. This gives a visible holder or community label, with **no extra points**.
+4. The wallet allocates exactly 100 integer points among active text-only candidates and gives one reason of at most 220 characters. A second submission replaces the first atomically; one wallet has one current allocation.
+5. The board counts current submissions, points, allocating wallets, holder/community segments, and recent reasons. A stable `/signal/:id` link shows the wallet's latest shareable result without exposing its address or balances.
 
-1. Open the [production homepage](https://6764jzr4.insforge.site).
-2. Paste the public mainnet example `6GJbPKBtovsrMEEMcic5KMi5tswh9qSyT5ZYLMqEwNgt` into **Check your public wallet**.
-3. Confirm five official PreStocks positions, open **SpaceX**, and select **See next step**.
-4. Observe `ACTION_REQUIRED` and the fail-closed `MANUAL_ACTION_REQUIRED` plan: the source notice is reviewed, while the destination mint and executable route remain unverified.
-5. Open [Developer integration](https://6764jzr4.insforge.site/#developers) for the generic-wallet before state, one-component integration, PreStocks-aware after state, and React, SDK, and REST examples.
+A signature proves control of an address, **not** unique-person identity. Holder status is checked when a signal is published; a later token transfer does not change a prior submission's segment until that wallet republishes. “Signed participants” on the board means wallets with a current published submission. It does not count everyone who merely signed in.
 
-The canonical experience is `/`. The former `/demo/integration` path permanently redirects to `/#developers`.
+## Candidate registry
 
-## Production proof
-
-| Classification | Evidence | Current result |
-| --- | --- | --- |
-| **LIVE** | Production deployment | [6764jzr4.insforge.site](https://6764jzr4.insforge.site) |
-| **LIVE** | Public mainnet holder | 17 token accounts; five exact-mint PreStocks positions |
-| **LIVE** | SpaceX position | `ACTION_REQUIRED` |
-| **REVIEWED SOURCE** | PreStocks SpaceX product-page notice | Stored with source URL and review timestamp |
-| **LIVE + DERIVED** | Wallet-specific resolution plan | `MANUAL_ACTION_REQUIRED` |
-| **SYNTHETIC TEST** | Demo balances and multi-step lineage fixtures | Used only for deterministic UI and test coverage |
-| **UNVERIFIED** | Destination mint, conversion ratio, executable route | Not claimed and left unavailable |
-
-The holder is a public onchain example. This project does not identify its owner or claim control of it. The application is deployed through the linked InsForge project using its Vercel hosting provider. Production has one required server-side environment variable, `SOLANA_RPC_URL`. `JUPITER_API_KEY` is intentionally absent because no reviewed transition currently has a verified destination mint. No secret is exposed to the browser or stored in this repository.
-
-Quick production checks:
-
-```bash
-curl https://6764jzr4.insforge.site/api/v1/assets
-curl https://6764jzr4.insforge.site/api/v1/lineage/SPACEX
-curl https://6764jzr4.insforge.site/api/v1/wallet/6GJbPKBtovsrMEEMcic5KMi5tswh9qSyT5ZYLMqEwNgt/actions
-curl -X POST https://6764jzr4.insforge.site/api/v1/resolve/plan \
-  -H 'content-type: application/json' \
-  -d '{"wallet":"6GJbPKBtovsrMEEMcic5KMi5tswh9qSyT5ZYLMqEwNgt","symbol":"SPACEX"}'
-```
-
-## What works today
-
-- The [official PreStocks API](https://prestocks.com/api/prestocks) supplies asset identity and `contract_address` values. These exact mint addresses are the trusted registry; token symbols and metadata are never used to identify holdings. The server revalidates asset data every 60 seconds.
-- A public-address lookup reads finalized SPL Token and Token-2022 accounts from a configured Solana mainnet RPC, validates parsed data, ignores zero balances and unknown mints, deduplicates accounts, and aggregates same-mint raw amounts using integers. The response marks these positions `mode: "live"`.
-- `GET /api/v1/wallet/:address/actions` is the first ActionKit integration surface. It combines the trusted mint registry, live wallet balances, current market data, and normalized actions with explicit source metadata. An informational action and an executable onchain action are separate states.
-- A reviewed [SpaceX product-page notice](https://prestocks.com/spacex) is stored as a sourced lifecycle snapshot. The evaluator selects the relevant event deterministically, prioritizing active required actions over historical notices. ActionKit exposes an official review action and a non-executable migration requirement because no verified destination mint exists.
-- The lifecycle provider declares its acquisition mode and source class. The current provider is a reviewed static snapshot, not a PreStocks corporate-actions API. The lineage model retains event provenance and can describe verified transitions. The production registry currently contains **one** SpaceX notice and no verified destination mint or conversion ratio. Its lineage cannot claim an XAI → SPACEX → SPCXx chain.
-- The deterministic resolution planner separates current action from historical lineage. Announced and completed events are informational, expired events stay historical, issuer flows remain issuer-managed, and swap candidates require independently verified execution evidence for the exact source mint, destination mint, and raw amount.
-- A typed TypeScript SDK and four reusable React components consume the same REST routes. The developer section at `/#developers` shows the change from a balance-only wallet UI to sourced lifecycle actions and provides React, SDK, and REST integration paths.
-- A Jupiter order adapter and quote validation boundary are present. They only run after a reviewed transition supplies a verified destination mint and `JUPITER_API_KEY` is configured. No such production transition is recorded yet, so **no executable Jupiter route is currently claimed**. The API does not expose an unsigned transaction for signing.
-- The demo wallet and simulation API remain separate and clearly labeled. Demo balances do not establish real ownership.
-
-No private key, seed phrase, custody, automatic signing, transaction broadcast, or swap execution is part of this release. A wallet connection and signed transaction flow are not enabled.
-
-## Run locally
-
-Requires Node.js 22 or later.
-
-```bash
-npm install
-cp .env.example .env.local
-# Set SOLANA_RPC_URL to a trusted Solana mainnet HTTPS RPC endpoint.
-npm run dev
-```
-
-Open `http://localhost:3000`. The homepage and demo work without RPC configuration. Live wallet routes return a clear configuration error until `SOLANA_RPC_URL` is set; they never silently use devnet. `JUPITER_API_KEY` is optional and is only used if a reviewed transition later supplies an executable candidate pair. Keep both values server-side in `.env.local`; never commit a key.
-
-Open `http://localhost:3000/#developers` for the reusable wallet integration proof. The previous `/demo/integration` URL redirects to this canonical section.
-
-On macOS when the checkout is inside Documents, npm scripts place `node_modules` and generated `.next` output in `~/Library/Caches/PreStocksActionKit/` to avoid cloud eviction during local runs. The dev server listens on `127.0.0.1:3000` and uses Next.js Webpack mode because the dependency symlink is outside the project. Stop `npm run dev` before `npm run build`, as both use the same `.next` output.
-
-```bash
-npm test
-npm run typecheck
-npm run build
-npm audit --omit=dev
-```
-
-## API
-
-| Route | Meaning |
-| --- | --- |
-| `GET /api/v1/assets` | Official asset registry and neutral premium calculation |
-| `GET /api/v1/events` | Reviewed lifecycle snapshots with provenance |
-| `GET /api/v1/events/:symbol` | Reviewed events for a symbol |
-| `GET /api/v1/lineage/:symbol` | Sourced transitions; historical entries explicitly marked |
-| `GET /api/v1/wallet/:address/prestocks` | Live official PreStocks holdings with exact balances |
-| `GET /api/v1/wallet/:address/actions` | Flagship ActionKit response with holdings, market data, and normalized sourced actions |
-| `GET /api/v1/wallet/:address/continuity` | Live wallet positions and lifecycle states |
-| `POST /api/v1/resolve/plan` | Wallet-specific, derived next-step plan |
-| `POST /api/v1/resolve/quote` | Jupiter route check only for a verified source/destination pair |
-| `POST /api/v1/evaluate` | Explicitly simulated balance evaluation |
-
-The live continuity response includes `positions` with exact `rawBalance` strings, `decimals`, fixed-decimal `uiBalance` strings, `lifecycleState`, evaluations, and counts. Empty wallets return empty positions and zero counts. The plan route accepts `{"wallet":"<public address>","symbol":"SPACEX"}`. Its present SpaceX result is `MANUAL_ACTION_REQUIRED`: the notice is sourced, but no destination mint or onchain route is verified. `NO_ACTION_REQUIRED` means no action is recorded in the reviewed provider; it is **not** proof that no real-world event exists. `RESOLVED` must not be inferred from a completed notice; it requires future wallet-level proof.
-
-The quote route accepts the same body. It cannot return `EXECUTABLE` unless the plan has a verified destination, Jupiter returns a current order for the exact source mint, destination mint, amount and wallet, and the returned unsigned transaction decodes and requires that wallet's signature. A missing key is a configuration state, not evidence that no route exists. A route may disappear or a quote may go stale before signing. No signing or broadcast endpoint is exposed.
-
-Invalid wallet addresses return 400. Missing RPC configuration returns 503, RPC rate limits 429, and RPC failures or malformed account data 502. Live responses use `Cache-Control: no-store`. The RPC provider can observe queried public addresses; choose one whose privacy practices suit the deployment.
-
-## TypeScript SDK
-
-The repository SDK is exported from `sdk/index.ts` and accepts an optional `baseUrl` and `fetch` implementation.
-
-```ts
-import { PreStocksActionKit } from "./sdk";
-
-const kit = new PreStocksActionKit({ baseUrl: "https://your-actionkit-host.example" });
-const assets = await kit.assets.list();
-const positionActions = await kit.wallet.getActions(publicKey);
-```
-
-Available methods:
-
-- `assets.list()` and `assets.get(symbol)`
-- `wallet.getHoldings(wallet)` and `wallet.getActions(wallet)`
-- `lifecycle.getLineage(symbol)`
-- `resolve.plan({ wallet, symbol })`
-
-Failed HTTP responses throw `ActionKitRequestError` with the response status and parsed payload. The SDK does not add client-side lifecycle or execution decisions.
-
-## React components
-
-The reusable components are exported from `components/actionkit/index.ts`:
-
-```tsx
-import { PreStocksActions } from "./components/actionkit";
-
-export function WalletPreStocks({ publicKey }: { publicKey: string }) {
-  return <PreStocksActions wallet={publicKey} />;
-}
-```
-
-- `PreStocksPortfolio` renders official holdings.
-- `PreStocksActions` renders normalized actions and their provenance.
-- `PreStocksPosition` renders one already-loaded action position.
-- `PreStocksContinuity` renders sourced lineage for a symbol.
-
-Loading, empty, error, and populated states are built into the data-fetching components. They call the SDK instead of duplicating server decision logic.
+The initial curated list is Stripe, Databricks, Canva, Discord, Epic Games, Perplexity, Ramp, and Vercel. Candidate records are text-only. They contain no token contracts or unofficial mints and do not imply company or PreStocks endorsement. Before launch, the list was compared with the [current official PreStocks asset registry](https://prestocks.com/api/prestocks); the submission route checks that registry again before accepting a signal. Candidate activity and descriptions are controlled in the versioned InsForge migration. Review company status and official overlap when changing the list.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  A[PreStocks official API] --> B[Official mint registry]
-  C[Reviewed lifecycle sources] --> D[Lifecycle provider]
-  D --> E[Lineage model]
-  F[Public Solana wallet] --> G[Holding scanner]
-  H[Finalized Solana RPC] --> G
-  B --> G
-  G --> I[ActionKit holdings resolver]
-  D --> I
-  I --> J[Action resolver and resolution planner]
-  E --> J
-  J --> K[REST API]
-  K --> N[TypeScript SDK]
-  N --> O[React component kit and integration demo]
-  J -. verified destination only .-> L[Jupiter order adapter]
-  L -. future user review and wallet signature .-> M[Broadcast and rescan]
+  W[Browser wallet] --> C[Signed challenge API]
+  C --> S[HTTP-only wallet session]
+  S --> H[Official holder scan]
+  A[PreStocks official asset API] --> H
+  R[Solana mainnet RPC] --> H
+  S --> P[100-point submission API]
+  H --> P
+  P --> D[(InsForge Postgres)]
+  D --> B[Public aggregate board]
+  D --> U[Shareable result]
+  D --> E[Protected aggregate export]
 ```
 
-The `LifecycleProvider` keeps source acquisition separate from decision logic. A future official corporate-action feed can replace the static snapshot without replacing the evaluator. Every transition carries its source URL, name, and verification time. Unknown destinations, ratios, and execution modes remain `null` or `UNKNOWN`; expired events remain historical and cannot become active actions through input ordering.
+The schema is in `migrations/20260922185638_prestocks-radar.sql`: candidates, challenges, sessions, submissions, and allocations. Tables have RLS enabled and no direct `anon` or `authenticated` access. Next.js route handlers use the InsForge admin SDK on the server. The database function `radar_replace_submission` validates active candidates and an exact 100-point sum, then replaces a wallet's allocation in one transaction. `radar_board` aggregates points and wallet counts without returning addresses. The export requires `RADAR_EXPORT_TOKEN` as an `Authorization: Bearer` header and returns aggregate JSON or `?format=csv`; it does not return wallet-level data. CSV cells are escaped for spreadsheet safety.
 
-## Source and provenance model
+The old ActionKit SDK, React components, and REST routes remain in the repository for reuse. The previous production state is preserved by the `actionkit-production-final` git tag. ActionKit is no longer the homepage product. `/demo/integration` redirects to `/`.
 
-- **LIVE** data is fetched at request time from the official PreStocks asset API or finalized Solana mainnet RPC.
-- **REVIEWED SOURCE** data is a versioned lifecycle snapshot with its source URL, source name, and review timestamp. It is not presented as a live corporate-actions feed.
-- **DERIVED** states are deterministic ActionKit evaluations built from a live position and reviewed source facts.
-- **SYNTHETIC TEST** data is limited to labeled demo balances and automated fixtures. It is never presented as wallet ownership.
-- **UNVERIFIED** facts remain `null`, `UNKNOWN`, or unavailable. They cannot produce an executable action.
+## Local development
 
-## Production verification
+Requires Node.js 22 or later and a linked InsForge project. The CLI is invoked through `npx -y @insforge/cli`.
 
-Verified on 20 September 2026 against Solana mainnet through the configured production RPC:
+```bash
+npm install
+cp .env.example .env.local
+# Set SOLANA_RPC_URL, INSFORGE_URL, INSFORGE_API_KEY, and RADAR_EXPORT_TOKEN.
+npm run dev
+```
 
-- `GET /api/v1/assets` returned 200 with eight assets from `PRESTOCKS_OFFICIAL_API`.
-- The public onchain wallet `6GJbPKBtovsrMEEMcic5KMi5tswh9qSyT5ZYLMqEwNgt` had 17 token accounts across SPL Token and Token-2022. ActionKit returned 200 with five exact-mint PreStocks positions: ANDURIL, FIGUREAI, NEURALINK, OPENAI, and SPACEX.
-- `GET /api/v1/wallet/:address/actions` returned sourced market actions plus one SpaceX `ACTION_REQUIRED` lifecycle state. `POST /api/v1/resolve/plan` returned 200 with `MANUAL_ACTION_REQUIRED`, no destination mint, and no claimed executable route.
-- A newly generated public key with zero token accounts returned 200 and an empty position list. A malformed address returned 400, a valid wallet without the requested position returned 404, and an unknown symbol returned 400.
-- `GET /api/v1/lineage/SPACEX` returned 200 with provider mode `reviewed-static`, the source URL, and the verification timestamp.
-- The homepage was checked at 1440 × 900 and 390 × 844 with no horizontal document overflow or browser console errors.
+Open `http://127.0.0.1:3000`. The board requires InsForge and the official registry. Signing and publishing additionally require a compatible wallet and a working Solana mainnet RPC. All credential values are server-only. Keep `.env.local` and `.insforge/project.json` out of commits. On macOS when this checkout is inside Documents, npm scripts store dependencies and `.next` output under `~/Library/Caches/PreStocksActionKit/` to avoid cloud eviction.
 
-The holder example was discovered from public mint-filtered token-account data. It proves that the production scanner recognizes live onchain holdings; it does not identify the wallet owner or prove that anyone participating in this project controls that wallet.
+## API
 
-## Testing
+| Route | Purpose |
+| --- | --- |
+| `GET /api/radar/board` | Public aggregate demand and a bounded set of recent reasons |
+| `POST /api/radar/challenge` | Create an expiring wallet message |
+| `POST /api/radar/verify` | Verify exact signed bytes, consume nonce, start session |
+| `GET /api/radar/me` | Current session, live holder label, own current allocation |
+| `POST /api/radar/submit` | Recheck holder, validate 100 points, replace current allocation |
+| `POST /api/radar/logout` | Revoke the current session |
+| `GET /api/radar/result/:id` | Address-free shareable result projection |
+| `GET /api/radar/export` | Bearer-protected aggregate JSON or CSV |
 
-The release gate covers 60 deterministic tests for exact-mint matching, SPL Token and Token-2022 scanning, integer balance aggregation, lifecycle selection, provenance validation, resolution planning, execution evidence, SDK behavior, and React states. The current production-ready revision passes:
+All mutating routes require a same-origin browser request. Public reads and authentication responses use `Cache-Control: no-store`. The older `/api/v1/*` ActionKit routes still exist; they are not part of the Radar user flow.
+
+## Verification
 
 ```bash
 npm test
@@ -195,13 +76,8 @@ npm run build
 npm audit --omit=dev
 ```
 
-Production is also checked at 1440 × 900 and 390 × 844 for the public-holder flow, developer tabs, copy behavior, anchors, external sources, console errors, and horizontal overflow.
+`npm test` covers signature validity, wrong key, expiry, reuse, malformed input, exact 100-point validation, candidate checks, and the inherited exact-mint/SPL/Token-2022 holder scanner. `RADAR_LIVE_TEST=1 node scripts/radar-live-smoke.mjs` exercises the live challenge, one-wallet replacement, aggregate board, share result, and protected export using a generated test wallet; it deletes the synthetic submission, session, and challenge at the end. Do not interpret a generated test identity as user traction.
 
-## Remaining proof before a full Continuity flow
+## Limits
 
-1. Reverify event freshness and obtain sourced destination mints, conversion details, and issuer instructions. The current SpaceX snapshot alone cannot establish an executable route.
-2. With a verified pair and Jupiter API key, test a real current quote. A quote is not an executed swap.
-3. Add wallet review and explicit signing, broadcast, confirmation, then a wallet rescan before any position is called `RESOLVED`. No signed transaction has been tested here.
-4. Add historical replay only after a complete xAI transition is sourced in the repository. Test fixtures for multi-step lineage are synthetic and are not public historical claims.
-
-PreStocks tokens provide economic exposure under PreStocks' terms. Continuity does not represent ownership of the underlying company or provide investment advice.
+This MVP does not prevent one person from controlling multiple wallets. The holder segment is a snapshot at publish time. The public board contains user-written reasons without automated moderation; keep them short and avoid putting private information there. Candidate companies are not associated with or endorsed by this project. Radar has no trading, token rewards, predictions, or listing guarantees.
