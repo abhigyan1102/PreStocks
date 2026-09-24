@@ -5,6 +5,7 @@ import type { Wallet, WalletAccount } from "@wallet-standard/base";
 import { StandardConnect, type StandardConnectFeature } from "@wallet-standard/features";
 import { SolanaSignMessage, type SolanaSignMessageFeature } from "@solana/wallet-standard-features";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import type { RadarBoard, RadarCandidate } from "@/lib/radar/validation";
 import { RadarMotion } from "./RadarMotion";
 
@@ -91,7 +92,11 @@ export function RadarApp() {
 
   function askToConnect() {
     setError("");
-    if (wallets.length === 0) { setError("No compatible Solana wallet found. Install a wallet that supports message signing, then refresh."); return; }
+    if (wallets.length === 0) {
+      setError("No compatible Solana wallet found. Install a wallet that supports message signing, then refresh.");
+      document.getElementById("connect")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
     setChooseWallet(true);
     document.getElementById("connect")?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
@@ -145,28 +150,25 @@ export function RadarApp() {
   }
 
   return <main className="radar-shell" id="top">
-    <RadarMotion />
-    <header className="radar-header radar-gutter">
-      <a href="#top" className="radar-wordmark">PreStocks <span>Radar</span></a>
-      <nav aria-label="Main navigation"><a href="#demand">Demand board</a><a href="#how">How it works</a><a href="#allocate">Your signal</a></nav>
-      <button className="header-connect" onClick={me ? () => void signOut() : askToConnect} disabled={busy}>
-        {me ? `${shortWallet(me.wallet)} · Sign out` : "Connect wallet"}
-      </button>
+    <RadarMotion boardReady={Boolean(board)} />
+    <header className="radar-header">
+      <div className="global-nav radar-gutter"><a href="#top" className="global-wordmark">PreStocks</a><nav aria-label="Main navigation"><a href="#demand">Demand board</a><a href="#how">How it works</a><a href="#allocate">Your signal</a></nav></div>
+      <div className="product-nav radar-gutter"><a href="#top" className="radar-wordmark">Radar</a><button className="header-connect" onClick={me ? () => void signOut() : askToConnect} disabled={busy}>{me ? `${shortWallet(me.wallet)} · Sign out` : "Connect wallet"}</button></div>
     </header>
 
     <section className="radar-hero radar-gutter" aria-labelledby="radar-title">
       <div className="radar-hero-copy">
         <h1 id="radar-title">What should PreStocks tokenize next?</h1>
         <p>Allocate 100 signal points across private companies and see what the PreStocks community wants access to next.</p>
-        <div className="radar-hero-actions"><button className="radar-button dark" onClick={me ? () => document.getElementById("allocate")?.scrollIntoView({ behavior: "smooth" }) : askToConnect}>{me ? "Shape your signal" : "Connect wallet"}<span aria-hidden="true">↗</span></button><a href="#demand" className="radar-text-link">Explore demand <span aria-hidden="true">↗</span></a></div>
+        <div className="radar-hero-actions"><button className="radar-button" onClick={me ? () => document.getElementById("allocate")?.scrollIntoView({ behavior: "smooth" }) : askToConnect}>{me ? "Shape your signal" : "Connect wallet"}</button><a href="#demand" className="radar-text-link">Explore demand <span aria-hidden="true">→</span></a></div>
       </div>
-      <div className="radar-hero-art" aria-hidden="true"><div className="signal-squares">{Array.from({ length: 100 }, (_, index) => <i key={index} />)}</div><div className="signal-stream"><i /><i /><i /><i /><i /></div><div className="signal-columns"><i /><i /><i /><i /><i /></div></div>
+      <div className="radar-hero-art" aria-hidden="true"><Image src="/images/radar-tiles.jpg" alt="" fill priority sizes="100vw" /></div>
     </section>
 
     <div className="candidate-ticker" aria-label="Curated candidate companies"><div>{[...candidates, ...candidates].map((candidate, index) => <span key={`${candidate.id}-${index}`}>{candidate.name}</span>)}</div></div>
 
     <section className="demand-section radar-gutter" id="demand" aria-labelledby="demand-title">
-      <div className="section-intro"><div><p className="eyebrow">Public demand board</p><h2 id="demand-title">Where community interest is going.</h2><p>Every published allocation is counted from persistent submissions. The board is public to explore.</p></div><div className="demand-total"><strong>{board?.metrics.signedParticipants ?? 0}</strong><span>signed participants</span></div></div>
+      <div className="section-intro"><div><h2 id="demand-title">See where interest is going.</h2><p>Explore the live view of what wallet-controlled addresses want PreStocks to tokenize next.</p></div><div className="demand-total"><strong>{board?.metrics.signedParticipants ?? 0}</strong><span>signed participants</span></div></div>
       {boardError && <p className="radar-error" role="alert">{boardError} <button onClick={() => void loadBoard()}>Retry</button></p>}
       {board && <>
         <div className="segment-row"><div className="segment-tabs" role="tablist" aria-label="Demand segment"><button role="tab" aria-selected={segment === "all"} className={segment === "all" ? "active" : ""} onClick={() => setSegment("all")}>All community</button><button role="tab" aria-selected={segment === "holders"} className={segment === "holders" ? "active" : ""} onClick={() => setSegment("holders")}>Current PreStocks holders</button></div><p>Equal 100 points per wallet. Holder status is checked when a signal is published.</p></div>
@@ -176,15 +178,15 @@ export function RadarApp() {
           const percentage = totalSignal ? signal * 100 / totalSignal : 0;
           const reasons = board.reasons.filter((item) => item.candidateId === candidate.id).slice(0, 2);
           return <div className="board-row" key={candidate.id}><div className="board-row-main"><div className="board-name"><span className="rank">{String(index + 1).padStart(2, "0")}</span><div><strong>{candidate.name}</strong><small>{candidate.description}</small></div></div><strong>{signal.toLocaleString()}</strong><span>{percentage.toFixed(1)}%</span><span>{walletsCount}</span></div><div className="board-track"><i style={{ width: `${percentage}%` }} /></div><div className="board-split"><span>Holder signal {candidate.holderPoints.toLocaleString()} · {candidate.holderWallets} wallets</span><span>Community signal {candidate.communityPoints.toLocaleString()} · {candidate.communityWallets} wallets</span></div>{reasons.length > 0 && <div className="board-reasons">{reasons.map((item, position) => <p key={`${item.updatedAt}-${position}`}>&ldquo;{item.reason}&rdquo; <span>{item.isCurrentHolder ? "Current holder" : "Community participant"}</span></p>)}</div>}</div>;
-        })}</div><aside className="board-aside"><div className="aside-rule" /><h3>{board.metrics.signedParticipants === 0 ? "Be the first to share your signal." : "The picture changes with every signal."}</h3><p>{board.metrics.signedParticipants === 0 ? "Connect a Solana wallet, put your 100 points where your interest is, and publish your view." : "These are current allocations from wallet-controlled addresses. Each wallet has one current submission."}</p><button className="radar-button rust" onClick={me ? () => document.getElementById("allocate")?.scrollIntoView({ behavior: "smooth" }) : askToConnect}>{me ? "Edit your allocation" : "Connect wallet"}<span aria-hidden="true">↗</span></button><p className="aside-note">Wallet verification proves control of an address, not unique-person identity.</p></aside></div>
+        })}</div><aside className="board-aside"><h3>{board.metrics.signedParticipants === 0 ? "The first signal starts here." : "The picture changes with every signal."}</h3><p>{board.metrics.signedParticipants === 0 ? "Connect a Solana wallet, put your 100 points where your interest is, and publish your view." : "These are current allocations from wallet-controlled addresses. Each wallet has one current submission."}</p><button className="radar-button" onClick={me ? () => document.getElementById("allocate")?.scrollIntoView({ behavior: "smooth" }) : askToConnect}>{me ? "Edit your allocation" : "Connect wallet"}</button><p className="aside-note">Wallet verification proves control of an address, not unique-person identity.</p></aside></div>
         <div className="metric-strip"><div><strong>{board.metrics.signedParticipants}</strong><span>Signed participants</span></div><div><strong>{board.metrics.currentHolderParticipants}</strong><span>Current holders</span></div><div><strong>{board.metrics.currentSubmissions}</strong><span>Current submissions</span></div><div><strong>{labelTime(board.metrics.latestUpdate)}</strong><span>Latest update</span></div></div>
-        {allReasons.length > 0 && <div className="reason-carousel" aria-label="Recent reasons"><div><p className="eyebrow">What people are saying</p><blockquote>&ldquo;{allReasons[reasonIndex % allReasons.length].reason}&rdquo;</blockquote><span>{candidates.find((candidate) => candidate.id === allReasons[reasonIndex % allReasons.length].candidateId)?.name ?? "Candidate"} · {allReasons[reasonIndex % allReasons.length].isCurrentHolder ? "Current holder" : "Community participant"}</span></div><div className="carousel-controls"><button aria-label="Previous reason" onClick={() => setReasonIndex((index) => (index - 1 + allReasons.length) % allReasons.length)}>←</button><button aria-label="Next reason" onClick={() => setReasonIndex((index) => (index + 1) % allReasons.length)}>→</button></div></div>}
+        {allReasons.length > 0 && <div className="reason-carousel" aria-label="Recent reasons"><div><p className="eyebrow">Recent reasons</p><blockquote>&ldquo;{allReasons[reasonIndex % allReasons.length].reason}&rdquo;</blockquote><span>{candidates.find((candidate) => candidate.id === allReasons[reasonIndex % allReasons.length].candidateId)?.name ?? "Candidate"} · {allReasons[reasonIndex % allReasons.length].isCurrentHolder ? "Current holder" : "Community participant"}</span></div><div className="carousel-controls"><button aria-label="Previous reason" onClick={() => setReasonIndex((index) => (index - 1 + allReasons.length) % allReasons.length)}>←</button><button aria-label="Next reason" onClick={() => setReasonIndex((index) => (index + 1) % allReasons.length)}>→</button></div></div>}
       </>}
     </section>
 
-    <section className="how-section radar-gutter" id="how" aria-labelledby="how-title"><div className="how-intro"><h2 id="how-title">{["One", "address.", "One", "current", "signal."].map((word, index) => <span className="how-word" key={`${word}-${index}`}>{word} </span>)}</h2><p>Radar measures expressed interest, not a listing decision. Your signature proves wallet control; official PreStocks holdings only change the segment shown beside your signal.</p></div><div className="how-grid"><div className="how-card"><strong>Connect and sign</strong><p>Approve a short wallet message. No transaction or private key is requested.</p></div><div className="how-card"><strong>Check current holdings</strong><p>Official PreStocks mints are read from Solana. Holders and non-holders have the same 100 points.</p></div><div className="how-card"><strong>Allocate exactly 100</strong><p>Spread whole points across curated company candidates and explain your top pick.</p></div><div className="how-card"><strong>Publish and explore</strong><p>Your latest allocation replaces the earlier one. The aggregate board updates from real submissions.</p></div></div></section>
+    <section className="how-section radar-gutter" id="how" aria-labelledby="how-title"><div className="how-intro"><h2 id="how-title">One wallet. One current signal.</h2><p>Radar measures expressed interest, not a listing decision. Your signature proves wallet control; official PreStocks holdings only change the segment shown beside your signal.</p></div><div className="how-grid"><div className="how-card"><strong>Connect and sign</strong><p>Approve a short wallet message. No transaction or private key is requested.</p></div><div className="how-card"><strong>Check current holdings</strong><p>Official PreStocks mints are read from Solana. Holders and non-holders have the same 100 points.</p></div><div className="how-card"><strong>Allocate exactly 100</strong><p>Spread whole points across curated company candidates and explain your top pick.</p></div><div className="how-card"><strong>Publish and explore</strong><p>Your latest allocation replaces the earlier one. The aggregate board updates from real submissions.</p></div></div><div className="how-image" aria-hidden="true"><Image src="/images/radar-dark-tiles.jpg" alt="" fill sizes="100vw" /></div></section>
 
-    <section className="allocation-section radar-gutter" id="allocate" aria-labelledby="allocation-title"><div id="connect" className="allocation-heading"><div><p className="eyebrow">Your allocation</p><h2 id="allocation-title">You have 100 signal points.</h2><p>Distribute them across the companies you want to see next.</p></div><div className="remaining"><strong>{remaining}<span> / 100</span></strong><small>remaining</small></div></div>
+    <section className="allocation-section radar-gutter" id="allocate" aria-labelledby="allocation-title"><div id="connect" className="allocation-heading"><div><h2 id="allocation-title">Shape what comes next.</h2><p>Give exactly 100 signal points to the companies you want to see next.</p></div><div className="remaining"><strong>{remaining}<span> / 100</span></strong><small>points remaining</small></div></div>
       {me && <div className="wallet-status"><span className="status-dot" />{me.isCurrentPreStocksHolder ? "Current PreStocks holder" : "Community participant"}<small>{shortWallet(me.wallet)}</small></div>}
       {holderError && <p className="radar-error" role="alert">{holderError} <button onClick={() => void loadMe()}>Retry holder check</button></p>}
       {error && <p className="radar-error" role="alert">{error}</p>}
