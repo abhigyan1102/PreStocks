@@ -1,6 +1,7 @@
 import { createHash, createPublicKey, randomBytes, verify as verifySignature } from "node:crypto";
 import bs58 from "bs58";
 import { validateWalletAddress } from "@/lib/solana/wallet";
+import { formatSignInMessage, type RadarSignInInput } from "./sign-in";
 
 const ED25519_SPKI_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 export const CHALLENGE_LIFETIME_MS = 5 * 60 * 1000;
@@ -18,21 +19,19 @@ export function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-export function makeChallenge(wallet: string, domain: string, now = new Date()) {
+export function makeChallenge(wallet: string, origin: string, now = new Date()) {
   validateWalletAddress(wallet);
+  const site = new URL(origin);
+  if (!["http:", "https:"].includes(site.protocol) || site.origin !== origin) throw new Error("Invalid sign-in origin");
   const nonce = randomBytes(32).toString("hex");
   const expiresAt = new Date(now.getTime() + CHALLENGE_LIFETIME_MS);
-  const message = [
-    "PreStocks Radar wallet verification",
-    `Domain: ${domain}`,
-    `Wallet: ${wallet}`,
-    `Nonce: ${nonce}`,
-    `Issued at: ${now.toISOString()}`,
-    `Expires at: ${expiresAt.toISOString()}`,
-    "Purpose: Publish a 100-point community demand signal.",
-    "This signature does not authorize a transaction.",
-  ].join("\n");
-  return { nonceHash: sha256(nonce), message, issuedAt: now.toISOString(), expiresAt: expiresAt.toISOString() };
+  const signInInput: RadarSignInInput = {
+    domain: site.host, address: wallet, uri: site.origin, version: "1", chainId: "solana:mainnet", nonce,
+    statement: "Sign in to PreStocks Radar to publish your community demand signal. This request does not authorize a transaction.",
+    issuedAt: now.toISOString(), expirationTime: expiresAt.toISOString(),
+  };
+  const message = formatSignInMessage(signInInput);
+  return { nonceHash: sha256(nonce), message, signInInput, issuedAt: now.toISOString(), expiresAt: expiresAt.toISOString() };
 }
 
 export function verifyChallengeSignature(
@@ -40,13 +39,18 @@ export function verifyChallengeSignature(
   wallet: string,
   signatureBase64: string,
   signedMessage: string,
+  expectedOrigin: string,
   now = new Date(),
 ): boolean {
   if (challenge.wallet_address !== wallet || challenge.consumed_at !== null ||
-      new Date(challenge.expires_at).getTime() <= now.getTime() ||
+      !Number.isFinite(Date.parse(challenge.expires_at)) || Date.parse(challenge.expires_at) <= now.getTime() ||
       signedMessage !== challenge.message ||
       !/^[A-Za-z0-9+/]{86}==?$/.test(signatureBase64)) return false;
   try {
+    const site = new URL(expectedOrigin);
+    const lines = challenge.message.split("\n");
+    if (site.origin !== expectedOrigin || lines[0] !== `${site.host} wants you to sign in with your Solana account:` ||
+        lines[1] !== wallet || !lines.includes(`URI: ${site.origin}`)) return false;
     validateWalletAddress(wallet);
     const publicKeyBytes = bs58.decode(wallet);
     const signature = Buffer.from(signatureBase64, "base64");

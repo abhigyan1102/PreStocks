@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       .select("wallet_address, message, expires_at, consumed_at")
       .eq("id", body.challengeId).limit(1).maybeSingle();
     if (result.error) throw new Error("Challenge lookup failed");
-    if (!result.data || !verifyChallengeSignature(result.data, body.wallet, body.signature, body.signedMessage)) {
+    if (!result.data || !verifyChallengeSignature(result.data, body.wallet, body.signature, body.signedMessage, request.headers.get("origin")!)) {
       return NextResponse.json({ error: "Invalid or expired wallet signature" }, { status: 401 });
     }
     const consumed = await radarDb().from("radar_challenges")

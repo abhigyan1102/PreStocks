@@ -11,8 +11,7 @@ export async function POST(request: Request) {
     const body = await readJson(request) as { wallet?: unknown };
     if (!body || typeof body.wallet !== "string") throw new Error("Wallet address required");
     const now = new Date();
-    const domain = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? new URL(request.url).host;
-    const challenge = makeChallenge(body.wallet, domain, now);
+    const challenge = makeChallenge(body.wallet, request.headers.get("origin")!, now);
     const recent = await radarDb().from("radar_challenges").select("id", { count: "exact" })
       .eq("wallet_address", body.wallet).gte("created_at", new Date(now.getTime() - 60_000).toISOString()).limit(1);
     if (recent.error) throw new Error("Challenge limit unavailable");
@@ -22,7 +21,7 @@ export async function POST(request: Request) {
       issued_at: challenge.issuedAt, expires_at: challenge.expiresAt,
     }]).select("id").single();
     if (result.error || !result.data) throw new Error("Could not create challenge");
-    return NextResponse.json({ challengeId: result.data.id, message: challenge.message, expiresAt: challenge.expiresAt },
+    return NextResponse.json({ challengeId: result.data.id, message: challenge.message, signInInput: challenge.signInInput, expiresAt: challenge.expiresAt },
       { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Invalid challenge request";
