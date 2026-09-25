@@ -6,22 +6,17 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
-export function RadarMotion({ boardReady }: { boardReady: boolean }) {
+export function RadarMotion() {
   useGSAP(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    gsap.fromTo(".radar-hero-art img", { scale: 0.94 }, {
-      scale: 1, ease: "none",
-      scrollTrigger: { trigger: ".radar-hero-art", start: "top bottom", end: "bottom 45%", scrub: true },
-    });
-    gsap.utils.toArray<HTMLElement>(".how-card").forEach((card, index) => {
-      gsap.fromTo(card, { y: 54 + index * 9, opacity: 0.25 }, {
-        y: 0, opacity: 1, ease: "none",
-        scrollTrigger: { trigger: card, start: "top 92%", end: "top 66%", scrub: true },
+    const media = gsap.matchMedia();
+    media.add("(prefers-reduced-motion: no-preference)", () => {
+      gsap.fromTo(".radar-illustration", { scale: .8 }, { scale: 1, duration: 1.4, ease: "power2.out" });
+      gsap.fromTo(".radar-illustration", { opacity: 1 }, { opacity: .2, immediateRender: false, ease: "none", scrollTrigger: { trigger: ".radar-illustration", start: "center top", end: "bottom top", scrub: true } });
+      gsap.utils.toArray<HTMLElement>(".how-steps li").forEach((step) => {
+        gsap.fromTo(step, { opacity: .4 }, { opacity: 1, ease: "none", scrollTrigger: { trigger: step, start: "top 92%", end: "top 70%", scrub: true } });
       });
     });
-    if (boardReady && window.matchMedia("(min-width: 1101px)").matches) {
-      ScrollTrigger.create({ trigger: ".board-list", pin: ".board-aside", pinSpacing: false, start: "top 110px", end: "bottom bottom" });
-    }
-  }, { dependencies: [boardReady], revertOnUpdate: true });
+    return () => media.revert();
+  });
   return null;
 }

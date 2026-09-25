@@ -1,23 +1,15 @@
 "use client";
 
 import { getWallets } from "@wallet-standard/app";
-import type { Wallet, WalletAccount } from "@wallet-standard/base";
-import { StandardConnect, type StandardConnectFeature } from "@wallet-standard/features";
-import { SolanaSignMessage, type SolanaSignMessageFeature } from "@solana/wallet-standard-features";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Image from "next/image";
-import type { RadarBoard, RadarCandidate } from "@/lib/radar/validation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { RadarBoard } from "@/lib/radar/validation";
+import { supportsRadar, type SupportedWallet } from "@/lib/radar/wallet-sign-in";
 import { RadarMotion } from "./RadarMotion";
+import { WalletSignIn } from "./WalletSignIn";
 
 type BoardData = RadarBoard & { reasons: { candidateId: string; reason: string; isCurrentHolder: boolean; updatedAt: string }[] };
 type MeData = { authenticated: true; wallet: string; isCurrentPreStocksHolder: boolean; officialPositionCount: number;
   pointsBudget: 100; submission: { id: string; reason: string; allocations: { candidateId: string; points: number }[] } | null };
-type SupportedWallet = Wallet & StandardConnectFeature & SolanaSignMessageFeature;
-
-function supportsSignal(wallet: Wallet): wallet is SupportedWallet {
-  return typeof (wallet.features[StandardConnect] as { connect?: unknown } | undefined)?.connect === "function" &&
-    typeof (wallet.features[SolanaSignMessage] as { signMessage?: unknown } | undefined)?.signMessage === "function";
-}
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { credentials: "same-origin", cache: "no-store", ...init });
@@ -25,14 +17,21 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   if (!response.ok) throw new Error(body?.error || "Request failed");
   return body as T;
 }
-
 function post<T>(url: string, body: unknown): Promise<T> {
   return api<T>(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 }
-
-function shortWallet(wallet: string): string { return `${wallet.slice(0, 5)}…${wallet.slice(-5)}`; }
-function labelTime(value: string | null): string {
-  return value ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "No updates yet";
+function shortWallet(wallet: string) { return `${wallet.slice(0, 5)}…${wallet.slice(-5)}`; }
+function RadarIllustration() {
+  return <div className="radar-illustration" aria-hidden="true"><svg viewBox="0 0 620 620" fill="none">
+    <g className="radar-rings" stroke="currentColor" strokeWidth="1"><path d="M310 22v576M22 310h576" />
+      {[64, 130, 194, 258].map((r) => <circle key={r} cx="310" cy="310" r={r} />)}
+      <circle cx="310" cy="310" r="224" strokeDasharray="2 6" />
+    </g>
+    <g className="radar-sweep"><path d="M310 310 485 121" stroke="currentColor" strokeWidth="1.5" /><path d="M310 52a258 258 0 0 1 175 69L310 310Z" fill="currentColor" opacity=".035" /></g>
+    <circle cx="310" cy="310" r="36" fill="currentColor" /><g stroke="#faf9f6" strokeWidth="1.5"><circle cx="310" cy="310" r="18"/><circle cx="310" cy="310" r="9"/><path d="m310 310 17-17"/></g>
+    <g className="radar-nodes" fill="currentColor"><circle cx="187" cy="169" r="6"/><circle cx="473" cy="202" r="6"/><circle cx="148" cy="372" r="6"/><circle cx="519" cy="394" r="6"/><circle cx="397" cy="496" r="6"/></g>
+    <g className="radar-labels" fill="#242323"><text x="172" y="157" textAnchor="end">Stripe</text><text x="486" y="191">Canva</text><text x="139" y="398" textAnchor="end">Databricks</text><text x="531" y="383">Discord</text><text x="408" y="519">Ramp</text></g>
+  </svg><span className="illustration-caption">Private companies.<br />Public interest.</span></div>;
 }
 
 export function RadarApp() {
@@ -48,7 +47,9 @@ export function RadarApp() {
   const [reason, setReason] = useState("");
   const [segment, setSegment] = useState<"all" | "holders">("all");
   const [shareHref, setShareHref] = useState("");
+  const [copied, setCopied] = useState(false);
   const [reasonIndex, setReasonIndex] = useState(0);
+  const draftDirty = useRef(false);
 
   const loadBoard = useCallback(async () => {
     try { setBoard(await api<BoardData>("/api/radar/board")); setBoardError(""); }
@@ -59,17 +60,18 @@ export function RadarApp() {
       const next = await api<MeData | { authenticated: false }>("/api/radar/me");
       if (next.authenticated) {
         setMe(next);
-        setReason(next.submission?.reason ?? "");
-        setPoints(Object.fromEntries(next.submission?.allocations.map((item) => [item.candidateId, item.points]) ?? []));
+        if (!draftDirty.current) {
+          setReason(next.submission?.reason ?? "");
+          setPoints(Object.fromEntries(next.submission?.allocations.map((item) => [item.candidateId, item.points]) ?? []));
+        }
       } else setMe(null);
       setHolderError("");
     } catch (caught) { setHolderError(caught instanceof Error ? caught.message : "Holder check unavailable"); }
   }, []);
-
   useEffect(() => {
     void loadBoard(); void loadMe();
     const registry = getWallets();
-    const refresh = () => setWallets(registry.get().filter(supportsSignal));
+    const refresh = () => setWallets(registry.get().filter(supportsRadar));
     refresh();
     const offRegister = registry.on("register", refresh);
     const offUnregister = registry.on("unregister", refresh);
@@ -79,57 +81,24 @@ export function RadarApp() {
   const total = Object.values(points).reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0);
   const remaining = 100 - total;
   const candidates = useMemo(() => [...(board?.candidates ?? [])].sort((a, b) => a.displayOrder - b.displayOrder), [board]);
-  const top = useMemo(() => candidates.filter((item) => (points[item.id] ?? 0) > 0)
-    .sort((a, b) => (points[b.id] ?? 0) - (points[a.id] ?? 0) || a.displayOrder - b.displayOrder)[0], [candidates, points]);
-  const totalSignal = board?.candidates.reduce((sum, item) => sum + (segment === "holders" ? item.holderPoints : item.totalPoints), 0) ?? 0;
-  const allReasons = board?.reasons ?? [];
+  const ranked = useMemo(() => [...candidates].sort((a, b) => (segment === "holders" ? b.holderPoints - a.holderPoints : b.totalPoints - a.totalPoints) || a.displayOrder - b.displayOrder), [candidates, segment]);
+  const top = [...candidates].filter((item) => (points[item.id] ?? 0) > 0).sort((a, b) => (points[b.id] ?? 0) - (points[a.id] ?? 0) || a.displayOrder - b.displayOrder)[0];
+  const totalSignal = candidates.reduce((sum, item) => sum + (segment === "holders" ? item.holderPoints : item.totalPoints), 0);
+  const allReasons = (board?.reasons ?? []).filter((item) => segment === "all" || item.isCurrentHolder);
+  const currentReason = allReasons.length ? allReasons[reasonIndex % allReasons.length] : null;
 
   function updatePoints(candidateId: string, value: number) {
     if (!Number.isInteger(value) || value < 0 || value > 100) return;
-    setPoints((current) => ({ ...current, [candidateId]: value }));
-    setShareHref("");
+    draftDirty.current = true;
+    setPoints((current) => ({ ...current, [candidateId]: value })); setShareHref("");
   }
-
-  function askToConnect() {
-    setError("");
-    if (wallets.length === 0) {
-      setError("No compatible Solana wallet found. Install a wallet that supports message signing, then refresh.");
-      document.getElementById("connect")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
-    setChooseWallet(true);
-    document.getElementById("connect")?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-
-  async function connect(wallet: SupportedWallet) {
-    setBusy(true); setError(""); setChooseWallet(false);
-    try {
-      const connector = wallet.features[StandardConnect] as StandardConnectFeature[typeof StandardConnect];
-      const signer = wallet.features[SolanaSignMessage] as SolanaSignMessageFeature[typeof SolanaSignMessage];
-      const connected = await connector.connect();
-      const account: WalletAccount | undefined = connected.accounts.find((item: WalletAccount) =>
-        item.chains.some((chain: string) => chain.startsWith("solana:")) && item.features.includes(SolanaSignMessage));
-      if (!account) throw new Error("This wallet does not offer a Solana account that can sign messages.");
-      const challenge = await post<{ challengeId: string; message: string }>("/api/radar/challenge", { wallet: account.address });
-      const signed = await signer.signMessage({ account, message: new TextEncoder().encode(challenge.message) });
-      const output = signed[0];
-      if (!output) throw new Error("The wallet did not return a signature.");
-      const signedMessage = new TextDecoder().decode(output.signedMessage);
-      const signature = btoa(String.fromCharCode(...output.signature));
-      await post("/api/radar/verify", { challengeId: challenge.challengeId, wallet: account.address, signature, signedMessage });
-      await loadMe();
-      document.getElementById("allocate")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "Wallet verification failed"); }
-    finally { setBusy(false); }
-  }
-
+  function askToConnect() { setError(""); setChooseWallet(true); }
   async function signOut() {
     setBusy(true);
-    try { await post("/api/radar/logout", {}); setMe(null); setPoints({}); setReason(""); setShareHref(""); }
+    try { await post("/api/radar/logout", {}); setMe(null); draftDirty.current = false; setPoints({}); setReason(""); setShareHref(""); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not sign out"); }
     finally { setBusy(false); }
   }
-
   async function publish() {
     if (!me || total !== 100 || !reason.trim()) return;
     setBusy(true); setError("");
@@ -137,63 +106,68 @@ export function RadarApp() {
       const result = await post<{ href: string }>("/api/radar/submit", {
         allocations: candidates.map((candidate) => ({ candidateId: candidate.id, points: points[candidate.id] ?? 0 })), reason,
       });
-      setShareHref(result.href);
+      setShareHref(result.href); setCopied(false); draftDirty.current = false;
       await Promise.all([loadBoard(), loadMe()]);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Signal could not be published"); }
     finally { setBusy(false); }
   }
-
   async function copyShare() {
     if (!shareHref) return;
-    try { await navigator.clipboard.writeText(new URL(shareHref, window.location.origin).toString()); }
+    try { await navigator.clipboard.writeText(new URL(shareHref, window.location.origin).toString()); setCopied(true); }
     catch { setError("Copy failed. Open your result and copy the address from the browser."); }
   }
 
   return <main className="radar-shell" id="top">
-    <RadarMotion boardReady={Boolean(board)} />
-    <header className="radar-header">
-      <div className="global-nav radar-gutter"><a href="#top" className="global-wordmark">PreStocks</a><nav aria-label="Main navigation"><a href="#demand">Demand board</a><a href="#how">How it works</a><a href="#allocate">Your signal</a></nav></div>
-      <div className="product-nav radar-gutter"><a href="#top" className="radar-wordmark">Radar</a><button className="header-connect" onClick={me ? () => void signOut() : askToConnect} disabled={busy}>{me ? `${shortWallet(me.wallet)} · Sign out` : "Connect wallet"}</button></div>
-    </header>
+    <RadarMotion />
+    <a className="skip-link" href="#demand">Skip to demand board</a>
+    <header className="radar-header radar-gutter"><a className="brand" href="#top">PreStocks <span>/ Radar</span></a><nav aria-label="Main navigation"><a href="#demand">Demand board</a><a href="#how">How it works</a><button className="header-connect" onClick={me ? () => void signOut() : askToConnect} disabled={busy}>{me ? `${shortWallet(me.wallet)} · Sign out` : "Connect wallet"}</button></nav></header>
 
-    <section className="radar-hero radar-gutter" aria-labelledby="radar-title">
-      <div className="radar-hero-copy">
-        <h1 id="radar-title">What should PreStocks tokenize next?</h1>
-        <p>Allocate 100 signal points across private companies and see what the PreStocks community wants access to next.</p>
-        <div className="radar-hero-actions"><button className="radar-button" onClick={me ? () => document.getElementById("allocate")?.scrollIntoView({ behavior: "smooth" }) : askToConnect}>{me ? "Shape your signal" : "Connect wallet"}</button><a href="#demand" className="radar-text-link">Explore demand <span aria-hidden="true">→</span></a></div>
-      </div>
-      <div className="radar-hero-art" aria-hidden="true"><Image src="/images/radar-tiles.jpg" alt="" fill priority sizes="100vw" /></div>
-    </section>
+    <section className="radar-hero radar-gutter" aria-labelledby="radar-title"><div className="radar-hero-copy">
+      <p className="hero-kicker">The next chapter starts with your signal.</p>
+      <h1 id="radar-title"><span>Put the next</span><span>name on</span><span>the radar<span className="accent">.</span></span></h1>
+      <p>Tell PreStocks which private companies you want access to. Allocate 100 points. Publish your perspective.</p>
+      <div className="radar-hero-actions"><a className="radar-button" href="#allocate">Build your signal <span aria-hidden="true">→</span></a><a className="radar-text-link" href="#demand">Explore demand</a></div>
+    </div><RadarIllustration /></section>
 
-    <div className="candidate-ticker" aria-label="Curated candidate companies"><div>{[...candidates, ...candidates].map((candidate, index) => <span key={`${candidate.id}-${index}`}>{candidate.name}</span>)}</div></div>
+    {candidates.length > 0 && <div className="candidate-ticker"><span className="ticker-label">Candidate companies</span><div className="ticker-window"><div className="ticker-track">{[0, 1].map((copy) => <div key={copy} aria-hidden={copy === 1 ? true : undefined}>{candidates.map((candidate) => <span key={candidate.id}>{candidate.name}</span>)}</div>)}</div></div></div>}
 
     <section className="demand-section radar-gutter" id="demand" aria-labelledby="demand-title">
-      <div className="section-intro"><div><h2 id="demand-title">See where interest is going.</h2><p>Explore the live view of what wallet-controlled addresses want PreStocks to tokenize next.</p></div><div className="demand-total"><strong>{board?.metrics.signedParticipants ?? 0}</strong><span>signed participants</span></div></div>
+      <div className="section-intro"><div><h2 id="demand-title">A clearer picture of demand.</h2><p>See which private companies the community wants PreStocks to tokenize next.</p></div><div className="demand-total"><strong>{board ? board.metrics.currentSubmissions.toLocaleString() : "—"}</strong><span>published signals</span></div></div>
       {boardError && <p className="radar-error" role="alert">{boardError} <button onClick={() => void loadBoard()}>Retry</button></p>}
+      {!board && !boardError && <p className="loading-state" role="status">Loading the demand board…</p>}
       {board && <>
-        <div className="segment-row"><div className="segment-tabs" role="tablist" aria-label="Demand segment"><button role="tab" aria-selected={segment === "all"} className={segment === "all" ? "active" : ""} onClick={() => setSegment("all")}>All community</button><button role="tab" aria-selected={segment === "holders"} className={segment === "holders" ? "active" : ""} onClick={() => setSegment("holders")}>Current PreStocks holders</button></div><p>Equal 100 points per wallet. Holder status is checked when a signal is published.</p></div>
-        <div className="board-layout"><div className="board-list"><div className="board-head"><span>Company</span><span>Points</span><span>Share</span><span>Wallets</span></div>{board.candidates.map((candidate, index) => {
+        <div className="segment-row"><div className="segment-tabs" role="group" aria-label="Demand segment"><button aria-pressed={segment === "all"} onClick={() => setSegment("all")}>All community</button><button aria-pressed={segment === "holders"} onClick={() => setSegment("holders")}>Current holders</button></div><p>Equal 100 points per wallet.</p></div>
+        <table className="demand-table"><caption className="sr-only">{segment === "holders" ? "Current PreStocks holder demand" : "All community demand"}, ranked by signal points</caption><thead><tr><th scope="col">Company</th><th scope="col">Points <span aria-hidden="true">↓</span></th><th scope="col">Share</th><th scope="col">Wallets</th></tr></thead><tbody>{ranked.map((candidate) => {
           const signal = segment === "holders" ? candidate.holderPoints : candidate.totalPoints;
-          const walletsCount = segment === "holders" ? candidate.holderWallets : candidate.allocatingWallets;
+          const count = segment === "holders" ? candidate.holderWallets : candidate.allocatingWallets;
           const percentage = totalSignal ? signal * 100 / totalSignal : 0;
-          const reasons = board.reasons.filter((item) => item.candidateId === candidate.id).slice(0, 2);
-          return <div className="board-row" key={candidate.id}><div className="board-row-main"><div className="board-name"><span className="rank">{String(index + 1).padStart(2, "0")}</span><div><strong>{candidate.name}</strong><small>{candidate.description}</small></div></div><strong>{signal.toLocaleString()}</strong><span>{percentage.toFixed(1)}%</span><span>{walletsCount}</span></div><div className="board-track"><i style={{ width: `${percentage}%` }} /></div><div className="board-split"><span>Holder signal {candidate.holderPoints.toLocaleString()} · {candidate.holderWallets} wallets</span><span>Community signal {candidate.communityPoints.toLocaleString()} · {candidate.communityWallets} wallets</span></div>{reasons.length > 0 && <div className="board-reasons">{reasons.map((item, position) => <p key={`${item.updatedAt}-${position}`}>&ldquo;{item.reason}&rdquo; <span>{item.isCurrentHolder ? "Current holder" : "Community participant"}</span></p>)}</div>}</div>;
-        })}</div><aside className="board-aside"><h3>{board.metrics.signedParticipants === 0 ? "The first signal starts here." : "The picture changes with every signal."}</h3><p>{board.metrics.signedParticipants === 0 ? "Connect a Solana wallet, put your 100 points where your interest is, and publish your view." : "These are current allocations from wallet-controlled addresses. Each wallet has one current submission."}</p><button className="radar-button" onClick={me ? () => document.getElementById("allocate")?.scrollIntoView({ behavior: "smooth" }) : askToConnect}>{me ? "Edit your allocation" : "Connect wallet"}</button><p className="aside-note">Wallet verification proves control of an address, not unique-person identity.</p></aside></div>
-        <div className="metric-strip"><div><strong>{board.metrics.signedParticipants}</strong><span>Signed participants</span></div><div><strong>{board.metrics.currentHolderParticipants}</strong><span>Current holders</span></div><div><strong>{board.metrics.currentSubmissions}</strong><span>Current submissions</span></div><div><strong>{labelTime(board.metrics.latestUpdate)}</strong><span>Latest update</span></div></div>
-        {allReasons.length > 0 && <div className="reason-carousel" aria-label="Recent reasons"><div><p className="eyebrow">Recent reasons</p><blockquote>&ldquo;{allReasons[reasonIndex % allReasons.length].reason}&rdquo;</blockquote><span>{candidates.find((candidate) => candidate.id === allReasons[reasonIndex % allReasons.length].candidateId)?.name ?? "Candidate"} · {allReasons[reasonIndex % allReasons.length].isCurrentHolder ? "Current holder" : "Community participant"}</span></div><div className="carousel-controls"><button aria-label="Previous reason" onClick={() => setReasonIndex((index) => (index - 1 + allReasons.length) % allReasons.length)}>←</button><button aria-label="Next reason" onClick={() => setReasonIndex((index) => (index + 1) % allReasons.length)}>→</button></div></div>}
+          return <tr key={candidate.id}><th scope="row"><div className="company-cell"><span className="company-initial" aria-hidden="true">{candidate.name[0]}</span><div><strong>{candidate.name}</strong><small>{candidate.description}</small></div></div></th><td>{signal.toLocaleString()}</td><td>{percentage.toFixed(1)}%</td><td>{count.toLocaleString()}</td></tr>;
+        })}</tbody></table>
+        {totalSignal === 0 && <div className="board-empty"><p>{segment === "holders" ? "No holder signals yet." : "No signals yet. Yours can start the conversation."}</p><a className="radar-text-link" href="#allocate">Build your signal <span aria-hidden="true">→</span></a></div>}
+        <div className="board-footnote"><span>{board.metrics.currentHolderParticipants} current holders · {board.metrics.signedParticipants} signed participants</span><span>{board.metrics.latestUpdate ? `Updated ${new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(board.metrics.latestUpdate))}` : "Waiting for the first published signal"}</span></div>
+        {currentReason && <div className="reason-carousel"><div><span className="subtle-label">Behind the signal</span><blockquote>“{currentReason.reason}”</blockquote><p>{candidates.find((candidate) => candidate.id === currentReason.candidateId)?.name} · {currentReason.isCurrentHolder ? "Current holder" : "Community participant"}</p></div><div className="carousel-controls"><button className="icon-button" aria-label="Previous reason" onClick={() => setReasonIndex((index) => (index - 1 + allReasons.length) % allReasons.length)}>←</button><button className="icon-button" aria-label="Next reason" onClick={() => setReasonIndex((index) => index + 1)}>→</button></div></div>}
       </>}
     </section>
 
-    <section className="how-section radar-gutter" id="how" aria-labelledby="how-title"><div className="how-intro"><h2 id="how-title">One wallet. One current signal.</h2><p>Radar measures expressed interest, not a listing decision. Your signature proves wallet control; official PreStocks holdings only change the segment shown beside your signal.</p></div><div className="how-grid"><div className="how-card"><strong>Connect and sign</strong><p>Approve a short wallet message. No transaction or private key is requested.</p></div><div className="how-card"><strong>Check current holdings</strong><p>Official PreStocks mints are read from Solana. Holders and non-holders have the same 100 points.</p></div><div className="how-card"><strong>Allocate exactly 100</strong><p>Spread whole points across curated company candidates and explain your top pick.</p></div><div className="how-card"><strong>Publish and explore</strong><p>Your latest allocation replaces the earlier one. The aggregate board updates from real submissions.</p></div></div><div className="how-image" aria-hidden="true"><Image src="/images/radar-dark-tiles.jpg" alt="" fill sizes="100vw" /></div></section>
-
-    <section className="allocation-section radar-gutter" id="allocate" aria-labelledby="allocation-title"><div id="connect" className="allocation-heading"><div><h2 id="allocation-title">Shape what comes next.</h2><p>Give exactly 100 signal points to the companies you want to see next.</p></div><div className="remaining"><strong>{remaining}<span> / 100</span></strong><small>points remaining</small></div></div>
-      {me && <div className="wallet-status"><span className="status-dot" />{me.isCurrentPreStocksHolder ? "Current PreStocks holder" : "Community participant"}<small>{shortWallet(me.wallet)}</small></div>}
-      {holderError && <p className="radar-error" role="alert">{holderError} <button onClick={() => void loadMe()}>Retry holder check</button></p>}
-      {error && <p className="radar-error" role="alert">{error}</p>}
-      {chooseWallet && <div className="wallet-picker" role="dialog" aria-label="Choose a wallet"><h3>Choose a Solana wallet</h3><div>{wallets.map((wallet) => <button key={wallet.name} onClick={() => void connect(wallet)} disabled={busy}>{wallet.name}</button>)}</div><button className="picker-close" onClick={() => setChooseWallet(false)}>Cancel</button></div>}
-      {!me ? <div className="locked-allocation"><p>Connect and sign to allocate. You can explore the demand board without a wallet.</p><button className="radar-button dark" onClick={askToConnect} disabled={busy}>Connect wallet <span aria-hidden="true">↗</span></button></div> : <><div className="allocation-grid">{candidates.map((candidate) => <div className="allocation-row" key={candidate.id}><div><strong>{candidate.name}</strong><p>{candidate.description}</p></div><div className="point-controls"><button type="button" aria-label={`Remove 10 points from ${candidate.name}`} onClick={() => updatePoints(candidate.id, Math.max(0, (points[candidate.id] ?? 0) - 10))}>−</button><input type="number" inputMode="numeric" min="0" max="100" step="1" aria-label={`${candidate.name} signal points`} value={points[candidate.id] ?? 0} onChange={(event) => { const value = Number(event.target.value); if (event.target.value === "") updatePoints(candidate.id, 0); else updatePoints(candidate.id, value); }} /><button type="button" aria-label={`Add 10 points to ${candidate.name}`} onClick={() => updatePoints(candidate.id, Math.min(100, (points[candidate.id] ?? 0) + Math.min(10, Math.max(0, remaining))))}>+</button></div></div>)}</div><div className="reason-field"><div><label htmlFor="radar-reason">Why is {top?.name ?? "your top pick"} your top pick?</label><span>{reason.length} / 220</span></div><textarea id="radar-reason" maxLength={220} rows={3} placeholder="One short sentence about why this company matters to you." value={reason} onChange={(event) => { setReason(event.target.value); setShareHref(""); }} /></div><div className="publish-row"><button className="radar-button rust" onClick={() => void publish()} disabled={busy || total !== 100 || !reason.trim()}>{busy ? "Publishing…" : me.submission ? "Update signal" : "Publish signal"}<span aria-hidden="true">↗</span></button><p>Exactly 100 whole points. Holder status does not add points.</p></div>{total !== 100 && <p className="allocation-help" role="status">{remaining > 0 ? `Allocate ${remaining} more points to publish.` : `Remove ${Math.abs(remaining)} points to publish.`}</p>}{shareHref && <div className="publish-success" role="status"><strong>Your signal is live.</strong><p>The public board has been refreshed. Your result link always shows your current allocation.</p><div><a href={shareHref}>View shareable result ↗</a><button onClick={() => void copyShare()}>Copy share link</button></div></div>}</>}
+    <section className="allocation-section radar-gutter" id="allocate" aria-labelledby="allocation-title">
+      <div className="allocation-layout"><div className="allocation-intro" id="how"><h2 id="allocation-title">Make your <br />100 points <br />count<span className="accent">.</span></h2><p className="allocation-lede">A little weight behind the companies you want to see next.</p>
+        <ol className="how-steps"><li><strong>Draft</strong><p>Divide 100 whole points across the candidates. Tell us why your top pick matters.</p></li><li><strong>Sign in</strong><p>Connect a Solana wallet, then approve a sign-in message. No transaction required.</p></li><li><strong>Publish</strong><p>Add your signal to the board. You can change it later; your latest allocation replaces the previous one.</p></li></ol>
+        <div className={`remaining ${remaining < 0 ? "over-budget" : ""}`} role="status"><strong>{remaining}</strong><span>points remaining</span><div className="budget-track"><i style={{ width: `${Math.min(total, 100)}%` }} /></div></div>
+      </div>
+      <div className="allocation-grid"><div className="allocation-column-heading"><span>Company</span><span>Your points</span></div>{!board && <p className="loading-state">{boardError ? "Load the demand board to see candidates." : "Loading candidates…"}</p>}{candidates.map((candidate) => <div className="allocation-row" key={candidate.id}><label htmlFor={`points-${candidate.id}`}>{candidate.name}</label><div className="point-controls"><button type="button" disabled={busy || !(points[candidate.id] ?? 0)} aria-label={`Remove 10 points from ${candidate.name}`} onClick={() => updatePoints(candidate.id, Math.max(0, (points[candidate.id] ?? 0) - 10))}>−</button><input id={`points-${candidate.id}`} disabled={busy} type="number" inputMode="numeric" min="0" max="100" step="1" aria-label={`${candidate.name} signal points`} value={points[candidate.id] ?? 0} onChange={(event) => updatePoints(candidate.id, Number(event.target.value))} /><button type="button" disabled={busy || remaining <= 0} aria-label={`Add 10 points to ${candidate.name}`} onClick={() => updatePoints(candidate.id, Math.min(100, (points[candidate.id] ?? 0) + Math.min(10, Math.max(0, remaining))))}>+</button></div></div>)}</div>
+      <div className="publish-panel"><h3>Your perspective.</h3><p>Give your top pick a little context. Your reason will be public alongside your signal.</p>
+        {me && <div className="wallet-status"><strong>{me.isCurrentPreStocksHolder ? "Current PreStocks holder" : "Community participant"}</strong><span>{shortWallet(me.wallet)}</span></div>}
+        <div className="reason-field"><label htmlFor="radar-reason">Why {top?.name ?? "your top pick"}?</label><textarea id="radar-reason" required disabled={busy} maxLength={220} rows={5} placeholder="One short sentence about why this company matters to you." value={reason} onChange={(event) => { draftDirty.current = true; setReason(event.target.value); setShareHref(""); }} /><span className="reason-count">{reason.length} / 220</span></div>
+        {holderError && <p className="radar-error" role="alert">{holderError} <button onClick={() => void loadMe()}>Retry session check</button></p>}
+        {error && <p className="radar-error" role="alert">{error}</p>}
+        <button className="radar-button publish-button" onClick={me ? () => void publish() : askToConnect} disabled={busy || (Boolean(me) && (total !== 100 || !reason.trim()))}>{busy ? "Please wait…" : !me ? "Connect to publish" : me.submission ? "Update signal" : "Publish signal"}<span aria-hidden="true">→</span></button>
+        <p className="allocation-help" role="status">{!me ? "Draft first. Sign in when you are ready." : remaining > 0 ? `Allocate ${remaining} more points to publish.` : remaining < 0 ? `Remove ${Math.abs(remaining)} points to publish.` : !reason.trim() ? "Add a reason for your top pick." : "Ready to publish your 100-point signal."}</p>
+        {shareHref && <div className="publish-success" role="status"><strong>Your signal is live.</strong><a href={shareHref}>View your shareable result ↗</a><button onClick={() => void copyShare()}>{copied ? "Link copied" : "Copy share link"}</button></div>}
+      </div></div>
+      <div className="allocation-footnote"><p>Exactly 100 points per wallet. Holder status does not add points.</p><p>Holdings are checked against official PreStocks mints when you publish.</p></div>
     </section>
 
-    <footer className="radar-footer radar-gutter"><div><strong>PreStocks Radar</strong><p>Community demand research. Not governance or a promise of future listing.</p></div><p>Candidates are independent research entries, not endorsed listings. Wallet verification proves address control, not unique identity.</p></footer>
+    <footer className="radar-footer radar-gutter"><div><a className="brand" href="#top">PreStocks <span>/ Radar</span></a><p>Community demand, made visible.</p></div><div><p>Research candidates are not endorsed listings. Signals are not governance or a promise of future listing.</p><p>Wallet verification proves address control, not unique-person identity.</p></div><a className="back-top" href="#top">Back to top ↑</a></footer>
+    {chooseWallet && <WalletSignIn wallets={wallets} onClose={() => setChooseWallet(false)} onSignedIn={loadMe} />}
   </main>;
 }
